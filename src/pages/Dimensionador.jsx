@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
@@ -222,9 +222,36 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
   const [guardadoOk, setGuardadoOk] = useState(false)
   const [error, setError] = useState('')
   const [exportando, setExportando] = useState(false)
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const diagramaRef = useRef(null)
 
   const esAdmin = profile?.rol === 'administrador'
+
+  // Clientes ya atendidos antes, deduplicados por RUT (proyectos viene ordenado
+  // por fecha descendente, así que el primero que aparece es el más reciente).
+  const clientesPrevios = useMemo(() => {
+    const vistos = new Map()
+    for (const p of proyectos) {
+      if (!p.cliente_rut || vistos.has(p.cliente_rut)) continue
+      vistos.set(p.cliente_rut, { nombre: p.cliente_nombre, rut: p.cliente_rut, telefono: p.cliente_telefono ?? '' })
+    }
+    return [...vistos.values()]
+  }, [proyectos])
+
+  const sugerenciasCliente = useMemo(() => {
+    const porNombre = cliente.nombre.trim().toLowerCase()
+    const porRut = cliente.rut.replace(/[^0-9kK]/g, '')
+    if (porNombre.length < 2 && porRut.length < 3) return []
+    return clientesPrevios.filter(c =>
+      (porNombre.length >= 2 && c.nombre?.toLowerCase().includes(porNombre)) ||
+      (porRut.length >= 3 && c.rut?.replace(/[^0-9kK]/g, '').includes(porRut))
+    ).slice(0, 5)
+  }, [cliente.nombre, cliente.rut, clientesPrevios])
+
+  function elegirClientePrevio(c) {
+    setCliente({ nombre: c.nombre ?? '', rut: c.rut ?? '', telefono: c.telefono ?? '' })
+    setMostrarSugerencias(false)
+  }
 
   useEffect(() => { fetchPlanchas(); fetchProyectos() }, [])
 
@@ -587,19 +614,47 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '20px' }}>Datos del Cliente</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>RUT *</label>
-              <input value={cliente.rut} onChange={e => handleRut(e.target.value)} placeholder="12.345.678-9" maxLength={12} />
+              <input value={cliente.rut} onChange={e => handleRut(e.target.value)}
+                onFocus={() => setMostrarSugerencias(true)}
+                onBlur={() => setTimeout(() => setMostrarSugerencias(false), 150)}
+                placeholder="12.345.678-9" maxLength={12} />
+              {mostrarSugerencias && sugerenciasCliente.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', zIndex: 10,
+                  background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden'
+                }}>
+                  {sugerenciasCliente.map(c => (
+                    <button key={c.rut} type="button" onMouseDown={() => elegirClientePrevio(c)}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none',
+                        padding: '8px 12px', fontSize: '12px', color: 'var(--text1)', cursor: 'pointer', borderBottom: '1px solid var(--border)'
+                      }}>
+                      <div style={{ fontWeight: '500' }}>{c.nombre}</div>
+                      <div style={{ color: 'var(--text3)', fontSize: '11px' }}>{c.rut}{c.telefono ? ` · ${c.telefono}` : ''}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>Nombre y apellido *</label>
-              <input value={cliente.nombre} onChange={e => setCliente({ ...cliente, nombre: e.target.value })} placeholder="Juan Pérez" />
+              <input value={cliente.nombre} onChange={e => setCliente({ ...cliente, nombre: e.target.value })}
+                onFocus={() => setMostrarSugerencias(true)}
+                onBlur={() => setTimeout(() => setMostrarSugerencias(false), 150)}
+                placeholder="Juan Pérez" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>Teléfono</label>
               <input value={cliente.telefono} onChange={e => setCliente({ ...cliente, telefono: e.target.value })} placeholder="+56 9 1234 5678" />
             </div>
           </div>
+          {sugerenciasCliente.length > 0 && (
+            <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>
+              💡 Cliente ya atendido antes — toca una sugerencia para autocompletar sus datos.
+            </p>
+          )}
           <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '14px', lineHeight: 1.5 }}>
             🔒 Los datos del cliente se usan únicamente para identificar y elaborar este proyecto de dimensionado.
             El cliente puede solicitar su acceso, rectificación o eliminación (Ley 19.628 / Ley 21.719).
