@@ -25,10 +25,11 @@ export default function Tablero() {
 
   async function fetchDias() {
     setLoading(true)
-    const primerDia = new Date(mes.year, mes.month, 1)
-    const ultimoDia = new Date(mes.year, mes.month + 1, 0)
-    const desde = aYMD(primerDia)
-    const hasta = aYMD(ultimoDia)
+    // Número de días del mes (lectura puntual de Date, no hay acumulación de drift)
+    const diasEnMes = new Date(mes.year, mes.month + 1, 0).getDate()
+    const mesStr = String(mes.month + 1).padStart(2, '0')
+    const desde = `${mes.year}-${mesStr}-01`
+    const hasta = `${mes.year}-${mesStr}-${String(diasEnMes).padStart(2, '0')}`
 
     const { data } = await supabase
       .from('vista_dias_mes')
@@ -37,13 +38,15 @@ export default function Tablero() {
       .lte('fecha', hasta)
       .order('fecha')
 
+    // Se arma la lista de días por aritmética de enteros (no por setDate() repetido),
+    // así ningún cambio de horario de verano puede saltarse el último día del mes.
     const todosDias = []
-    for (let d = new Date(primerDia); d <= ultimoDia; d.setDate(d.getDate() + 1)) {
-      const fechaStr = aYMD(d)
+    for (let dia = 1; dia <= diasEnMes; dia++) {
+      const fechaStr = `${mes.year}-${mesStr}-${String(dia).padStart(2, '0')}`
       const planificado = data?.find(p => p.fecha === fechaStr)
       todosDias.push({
         fecha: fechaStr,
-        dia: new Date(fechaStr + 'T12:00:00').getDate(),
+        dia,
         dimensionadores: planificado?.dimensionadores ?? null,
         cuota: planificado?.cuota ?? null,
         agendadas: planificado?.agendadas ?? 0,
