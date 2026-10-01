@@ -13,8 +13,14 @@ import PanelVentas from './PanelVentas'
 export default function Dashboard() {
   const { profile, signOut } = useAuth()
   const [pagina, setPagina] = useState('stock')
+  const [prefillDimensionador, setPrefillDimensionador] = useState(null)
 
   const esAdmin = profile?.rol === 'administrador'
+
+  function irADimensionador(datos) {
+    setPrefillDimensionador(datos)
+    setPagina('dimensionador')
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -69,10 +75,12 @@ export default function Dashboard() {
       {/* Contenido */}
       <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px' }}>
         {pagina === 'stock' && <Stock />}
-        {pagina === 'ordenes' && <Ordenes />}
+        {pagina === 'ordenes' && <Ordenes onCortar={irADimensionador} />}
         {pagina === 'tablero' && <Tablero />}
         {pagina === 'historial' && <Historial />}
-        {pagina === 'dimensionador' && <Dimensionador />}
+        {pagina === 'dimensionador' && (
+          <Dimensionador prefill={prefillDimensionador} onPrefillConsumido={() => setPrefillDimensionador(null)} />
+        )}
         {pagina === 'panel' && esAdmin && <PanelVentas />}
         {pagina === 'planchas' && esAdmin && <Planchas />}
         {pagina === 'usuarios' && esAdmin && <Usuarios />}

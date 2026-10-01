@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { hoyChile, aYMD } from '../lib/fechas'
 
-export default function Ordenes() {
+export default function Ordenes({ onCortar }) {
   const { profile } = useAuth()
   const [ordenes, setOrdenes] = useState([])
   const [stocks, setStocks] = useState([])
@@ -214,6 +214,10 @@ export default function Ordenes() {
       fetchOrdenes()
       fetchStocks()
       fetchCuota()
+
+      if (onCortar && confirm('¿El cliente realizará cortes a sus planchas?')) {
+        onCortar({ telefono: orden.telefono_cliente, tipo_plancha_id: orden.tipo_plancha_id })
+      }
     }
     setGuardando(false)
   }

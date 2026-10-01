@@ -203,7 +203,7 @@ function DiagramaPlancha({ plancha, escala, planchaW, planchaH }) {
 
 const PASOS = ['Datos del Cliente', 'Selección de Tablero', 'Dimensiones de Piezas', 'Optimizar']
 
-export default function Dimensionador() {
+export default function Dimensionador({ prefill, onPrefillConsumido }) {
   const { profile } = useAuth()
   const [vista, setVista] = useState('proyectos') // 'proyectos' | 'nuevo'
   const [paso, setPaso] = useState(0)
@@ -227,6 +227,20 @@ export default function Dimensionador() {
   const esAdmin = profile?.rol === 'administrador'
 
   useEffect(() => { fetchPlanchas(); fetchProyectos() }, [])
+
+  // Llega desde "Órdenes" al aprobar una boleta y confirmar que el cliente cortará sus planchas:
+  // precarga el teléfono y la plancha, el resto del proyecto se completa a mano como siempre.
+  useEffect(() => {
+    if (!prefill || planchasStock.length === 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVista('nuevo')
+    setPaso(0)
+    setCliente(c => ({ ...c, telefono: prefill.telefono ?? '' }))
+    const plancha = planchasStock.find(p => p.tipo_plancha_id === prefill.tipo_plancha_id)
+    if (plancha) setPlanchaSeleccionada(plancha)
+    onPrefillConsumido?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, planchasStock])
 
   async function fetchPlanchas() {
     const { data } = await supabase
