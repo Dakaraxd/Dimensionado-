@@ -120,7 +120,7 @@ export default function Tablero() {
   const colorCupo = (d) => {
     if (!d.cuota) return { bg: 'var(--bg3)', border: 'var(--border)', text: 'var(--text3)' }
     if (d.agendadas === 0) return { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.25)', text: 'var(--green)' }
-    if (d.cupo_disponible > 0) return { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', text: 'var(--blue)' }
+    if (d.cupo_disponible > 0) return { bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.25)', text: 'var(--info)' }
     if (d.cupo_disponible === 0) return { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)', text: 'var(--amber)' }
     return { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', text: 'var(--red)' }
   }
@@ -144,7 +144,7 @@ export default function Tablero() {
             ← Anterior
           </button>
           <button onClick={() => { const hoyD = new Date(); setMes({ year: hoyD.getFullYear(), month: hoyD.getMonth() }) }}
-            style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--blue)', borderRadius: '8px', padding: '7px 14px', fontSize: '13px' }}>
+            style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--primary)', borderRadius: '8px', padding: '7px 14px', fontSize: '13px' }}>
             Hoy
           </button>
           <button onClick={() => setMes(m => { const d = new Date(m.year, m.month + 1); return { year: d.getFullYear(), month: d.getMonth() } })}
@@ -158,7 +158,7 @@ export default function Tablero() {
       <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {[
           { color: 'var(--green)', label: 'Sin órdenes' },
-          { color: 'var(--blue)', label: 'Con cupo' },
+          { color: 'var(--info)', label: 'Con cupo' },
           { color: 'var(--amber)', label: 'Cuota llena' },
           { color: 'var(--red)', label: 'Excedido' },
           { color: 'var(--text3)', label: 'Sin planificar' },
@@ -209,8 +209,8 @@ export default function Tablero() {
 
             return (
               <div key={d.fecha} style={{
-                background: esHoyDia ? 'rgba(59,130,246,0.12)' : pasado ? 'rgba(255,255,255,0.02)' : colores.bg,
-                border: `1px solid ${esHoyDia ? 'var(--blue)' : tieneOrdenes ? 'rgba(59,130,246,0.3)' : colores.border}`,
+                background: esHoyDia ? 'rgba(242,107,29,0.12)' : pasado ? 'var(--bg3)' : colores.bg,
+                border: `1px solid ${esHoyDia ? 'var(--primary)' : tieneOrdenes ? 'rgba(242,107,29,0.35)' : colores.border}`,
                 borderRadius: '10px',
                 padding: '8px',
                 minHeight: '90px',
@@ -223,8 +223,8 @@ export default function Tablero() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{
                     fontSize: '14px', fontWeight: '500',
-                    color: esHoyDia ? 'var(--blue)' : pasado ? 'var(--text3)' : 'var(--text1)',
-                    background: esHoyDia ? 'var(--blue-soft)' : 'transparent',
+                    color: esHoyDia ? 'var(--primary)' : pasado ? 'var(--text3)' : 'var(--text1)',
+                    background: esHoyDia ? 'var(--primary-soft)' : 'transparent',
                     borderRadius: '6px', padding: esHoyDia ? '1px 6px' : '0'
                   }}>
                     {d.dia}
@@ -240,7 +240,7 @@ export default function Tablero() {
                     <div style={{ fontSize: '11px', color: colores.text, fontWeight: '500' }}>
                       {d.agendadas}/{d.cuota}
                     </div>
-                    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '99px', height: '3px' }}>
+                    <div style={{ background: 'var(--bg3)', borderRadius: '99px', height: '3px' }}>
                       <div style={{
                         height: '3px', borderRadius: '99px', background: colores.text,
                         width: `${Math.min(100, (d.agendadas / d.cuota) * 100)}%`
@@ -259,8 +259,8 @@ export default function Tablero() {
                   <div style={{ marginTop: '2px' }}>
                     <button onClick={() => setExpandido(estaExpandido ? null : d.fecha)}
                       style={{
-                        background: 'rgba(59,130,246,0.12)', border: 'none', borderRadius: '6px',
-                        padding: '3px 6px', fontSize: '10px', color: 'var(--blue)',
+                        background: 'var(--primary-soft)', border: 'none', borderRadius: '6px',
+                        padding: '3px 6px', fontSize: '10px', color: 'var(--primary)',
                         cursor: 'pointer', width: '100%', textAlign: 'left', fontWeight: '500'
                       }}>
                       {pendientes.length > 0 && `🕐 ${pendientes.length} pend.`}
@@ -327,7 +327,7 @@ export default function Tablero() {
                           <button key={n} onClick={() => handleGuardarDim(d.fecha, n)} disabled={guardando}
                             style={{
                               flex: 1,
-                              background: d.dimensionadores === n ? 'var(--blue)' : 'var(--bg3)',
+                              background: d.dimensionadores === n ? 'var(--primary)' : 'var(--bg3)',
                               color: d.dimensionadores === n ? '#fff' : 'var(--text2)',
                               border: '1px solid var(--border)', borderRadius: '6px',
                               padding: '3px', fontSize: '12px', fontWeight: '500'

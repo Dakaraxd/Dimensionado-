@@ -25,7 +25,7 @@ export default function Plancha3D({ plancha, planchaW, planchaH, escala = 0.05 }
 
     // Scene
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#1a1d24')
+    scene.background = new THREE.Color('#e5e7eb')
     sceneRef.current = scene
 
     // Camera
@@ -246,7 +246,7 @@ export default function Plancha3D({ plancha, planchaW, planchaH, escala = 0.05 }
           {piezaSeleccionada.nombre && (
             <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text1)', marginBottom: '4px' }}>{piezaSeleccionada.nombre}</p>
           )}
-          <p style={{ fontSize: '13px', color: 'var(--blue)' }}>{piezaSeleccionada.w} × {piezaSeleccionada.h} cm</p>
+          <p style={{ fontSize: '13px', color: 'var(--primary)' }}>{piezaSeleccionada.w} × {piezaSeleccionada.h} cm</p>
           {piezaSeleccionada.rotado && <p style={{ fontSize: '11px', color: 'var(--amber)', marginTop: '4px' }}>↺ Rotada</p>}
           <button onClick={() => setPiezaSeleccionada(null)}
             style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '11px', marginTop: '8px', cursor: 'pointer', padding: 0 }}>

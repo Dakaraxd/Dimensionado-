@@ -263,7 +263,7 @@ export default function Ordenes({ onCortar }) {
         </div>
         {puedeOperar && (
           <button onClick={() => { setShowForm(!showForm); setError(''); setDiasDisponibles([]); setFechaElegida(null); setOrdenCreada(null); setServiciosSeleccionados([]) }}
-            style={{ background: showForm ? 'var(--bg3)' : 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
+            style={{ background: showForm ? 'var(--bg3)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
             {showForm ? 'Cancelar' : '+ Nueva orden'}
           </button>
         )}
@@ -277,7 +277,7 @@ export default function Ordenes({ onCortar }) {
           </div>
           <div>
             <p style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '.04em' }}>Cuota del día</p>
-            <p style={{ fontSize: '22px', fontWeight: '500', color: 'var(--blue)' }}>{cuotaInfo.cuota}</p>
+            <p style={{ fontSize: '22px', fontWeight: '500', color: 'var(--primary)' }}>{cuotaInfo.cuota}</p>
           </div>
           <div>
             <p style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '.04em' }}>Agendadas</p>
@@ -374,15 +374,15 @@ export default function Ordenes({ onCortar }) {
                         <button key={s.id} type="button" onClick={() => toggleServicio(s.id)}
                           style={{
                             padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '500',
-                            border: `1px solid ${seleccionado ? 'var(--blue)' : 'var(--border)'}`,
-                            background: seleccionado ? 'var(--blue-soft)' : 'var(--bg3)',
-                            color: seleccionado ? 'var(--blue)' : 'var(--text2)',
+                            border: `1px solid ${seleccionado ? 'var(--primary)' : 'var(--border)'}`,
+                            background: seleccionado ? 'var(--primary-soft)' : 'var(--bg3)',
+                            color: seleccionado ? 'var(--primary)' : 'var(--text2)',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
                           }}>
                           <span style={{
                             width: '14px', height: '14px', borderRadius: '3px',
-                            border: `1.5px solid ${seleccionado ? 'var(--blue)' : 'var(--text3)'}`,
-                            background: seleccionado ? 'var(--blue)' : 'transparent',
+                            border: `1.5px solid ${seleccionado ? 'var(--primary)' : 'var(--text3)'}`,
+                            background: seleccionado ? 'var(--primary)' : 'transparent',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: '9px', color: '#fff', flexShrink: 0
                           }}>
@@ -412,8 +412,8 @@ export default function Ordenes({ onCortar }) {
                       <button key={d.fecha} type="button" onClick={() => { if (d.cabe) setFechaElegida(d.fecha) }}
                         style={{
                           padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '500',
-                          border: `1px solid ${fechaElegida === d.fecha ? 'var(--blue)' : d.cabe ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.3)'}`,
-                          background: fechaElegida === d.fecha ? 'var(--blue)' : d.cabe ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.06)',
+                          border: `1px solid ${fechaElegida === d.fecha ? 'var(--primary)' : d.cabe ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.3)'}`,
+                          background: fechaElegida === d.fecha ? 'var(--primary)' : d.cabe ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.06)',
                           color: fechaElegida === d.fecha ? '#fff' : d.cabe ? 'var(--green)' : 'var(--red)',
                           cursor: d.cabe ? 'pointer' : 'not-allowed', opacity: d.cabe ? 1 : 0.6
                         }}>
@@ -441,7 +441,7 @@ export default function Ordenes({ onCortar }) {
               {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px' }}>{error}</p>}
 
               <button type="submit" disabled={guardando || !fechaElegida}
-                style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '500', opacity: (guardando || !fechaElegida) ? 0.5 : 1, alignSelf: 'flex-start' }}>
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '500', opacity: (guardando || !fechaElegida) ? 0.5 : 1, alignSelf: 'flex-start' }}>
                 {guardando ? 'Creando...' : 'Crear orden'}
               </button>
             </form>
@@ -463,7 +463,7 @@ export default function Ordenes({ onCortar }) {
             return (
               <div key={fecha}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <div style={{ background: esHoyFecha ? 'var(--blue)' : 'var(--bg3)', color: esHoyFecha ? '#fff' : 'var(--text2)', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', fontWeight: '500' }}>
+                  <div style={{ background: esHoyFecha ? 'var(--primary)' : 'var(--bg3)', color: esHoyFecha ? '#fff' : 'var(--text2)', borderRadius: '8px', padding: '4px 12px', fontSize: '13px', fontWeight: '500' }}>
                     {formatFecha(fecha)}
                   </div>
                   <span style={{ fontSize: '12px', color: 'var(--text3)' }}>{totalFecha} planchas agendadas</span>
@@ -481,7 +481,7 @@ export default function Ordenes({ onCortar }) {
                         </div>
                         <p style={{ fontSize: '15px', fontWeight: '500', marginBottom: '6px' }}>
                           {o.tipo?.nombre} {o.tipo?.medida}
-                          <span style={{ color: 'var(--blue)', marginLeft: '8px' }}>{o.cantidad} planchas</span>
+                          <span style={{ color: 'var(--primary)', marginLeft: '8px' }}>{o.cantidad} planchas</span>
                         </p>
 
                         {/* Servicios de la orden */}
@@ -489,7 +489,7 @@ export default function Ordenes({ onCortar }) {
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
                             {o.orden_servicios.map(os => (
                               <span key={os.id} style={{
-                                background: 'rgba(139,92,246,0.12)', color: '#a78bfa',
+                                background: 'rgba(139,92,246,0.12)', color: '#6d28d9',
                                 border: '1px solid rgba(139,92,246,0.3)',
                                 fontSize: '11px', padding: '2px 8px', borderRadius: '99px'
                               }}>

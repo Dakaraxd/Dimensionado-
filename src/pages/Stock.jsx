@@ -134,7 +134,7 @@ export default function Stock() {
         </div>
         {esAdmin && (
           <button onClick={() => { setShowForm(!showForm); setError(''); setCategoriaSeleccionada(''); setForm({ tipo_plancha_id: '', total: '' }) }}
-            style={{ background: showForm ? 'var(--bg3)' : 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
+            style={{ background: showForm ? 'var(--bg3)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
             {showForm ? 'Cancelar' : '+ Agregar plancha'}
           </button>
         )}
@@ -174,7 +174,7 @@ export default function Stock() {
           </div>
           {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
           <button type="submit" disabled={guardando || !form.tipo_plancha_id || !form.total}
-            style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 20px', fontSize: '13px', fontWeight: '500', marginTop: '16px', opacity: guardando ? 0.7 : 1 }}>
+            style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 20px', fontSize: '13px', fontWeight: '500', marginTop: '16px', opacity: guardando ? 0.7 : 1 }}>
             {guardando ? 'Guardando...' : 'Guardar stock'}
           </button>
         </form>
@@ -210,7 +210,7 @@ export default function Stock() {
                 </span>
               </div>
 
-              <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '99px', height: '4px', marginBottom: '10px' }}>
+              <div style={{ background: 'var(--bg3)', borderRadius: '99px', height: '4px', marginBottom: '10px' }}>
                 <div style={{
                   height: '4px', borderRadius: '99px',
                   background: disponibleColor(s.disponible, s.total),

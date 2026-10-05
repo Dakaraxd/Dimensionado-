@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 
 const accionConfig = {
   CREAR:      { bg: 'rgba(16,185,129,0.12)',  color: 'var(--green)',  border: 'rgba(16,185,129,0.3)',  icono: '➕', texto: 'creó' },
-  EDITAR:     { bg: 'rgba(59,130,246,0.12)',  color: 'var(--blue)',   border: 'rgba(59,130,246,0.3)',  icono: '✏️', texto: 'editó' },
+  EDITAR:     { bg: 'rgba(59,130,246,0.12)',  color: 'var(--info)',   border: 'rgba(37,99,235,0.3)',  icono: '✏️', texto: 'editó' },
   ELIMINAR:   { bg: 'rgba(239,68,68,0.12)',   color: 'var(--red)',    border: 'rgba(239,68,68,0.3)',   icono: '🗑️', texto: 'eliminó' },
   APROBAR:    { bg: 'rgba(16,185,129,0.12)',  color: 'var(--green)',  border: 'rgba(16,185,129,0.3)',  icono: '✅', texto: 'aprobó' },
   CANCELAR:   { bg: 'rgba(239,68,68,0.12)',   color: 'var(--red)',    border: 'rgba(239,68,68,0.3)',   icono: '❌', texto: 'canceló' },
@@ -172,7 +172,7 @@ export default function Logs() {
                       <div style={{ flex: 1 }}>
                         {/* Frase principal */}
                         <p style={{ fontSize: '14px', color: 'var(--text1)', marginBottom: '4px', lineHeight: '1.4' }}>
-                          <span style={{ fontWeight: '600', color: 'var(--blue)' }}>{l.usuario_nombre}</span>
+                          <span style={{ fontWeight: '600', color: 'var(--primary)' }}>{l.usuario_nombre}</span>
                           {' '}{cfg.texto}{' '}
                           <span style={{ color: cfg.color, fontWeight: '500' }}>{entidadTexto[l.entidad] ?? l.entidad}</span>
                         </p>

@@ -1,24 +1,35 @@
 @import "tailwindcss";
 
+/* Tema claro inspirado en Homecenter Sodimac: naranja corporativo sobre fondos claros.
+   --primary es el color de marca (botones, selección); --info es un azul neutro
+   para estados informativos que no deben confundirse con la marca. */
 :root {
-  --bg: #1e2027;
-  --bg2: #252830;
-  --bg3: #2d3139;
-  --border: rgba(255,255,255,0.08);
-  --text1: #e8eaf0;
-  --text2: #9ca3af;
+  color-scheme: light;
+
+  --bg: #f4f5f7;
+  --bg2: #ffffff;
+  --bg3: #eceef2;
+  --border: rgba(15, 23, 42, 0.12);
+  --text1: #1f2937;
+  --text2: #4b5563;
   --text3: #6b7280;
-  --blue: #3b82f6;
-  --blue2: #1d4ed8;
-  --blue-soft: rgba(59,130,246,0.15);
-  --green: #10b981;
-  --green-soft: rgba(16,185,129,0.15);
-  --amber: #f59e0b;
-  --amber-soft: rgba(245,158,11,0.15);
-  --red: #ef4444;
-  --red-soft: rgba(239,68,68,0.12);
-  --purple: #8b5cf6;
-  --purple-soft: rgba(139,92,246,0.15);
+
+  --primary: #f26b1d;
+  --primary-dark: #d4560f;
+  --primary-soft: rgba(242, 107, 29, 0.12);
+
+  --info: #2563eb;
+  --info-soft: rgba(37, 99, 235, 0.1);
+  --green: #15803d;
+  --green-soft: rgba(21, 128, 61, 0.12);
+  --amber: #b45309;
+  --amber-soft: rgba(180, 83, 9, 0.12);
+  --red: #dc2626;
+  --red-soft: rgba(220, 38, 38, 0.1);
+  --purple: #7c3aed;
+  --purple-soft: rgba(124, 58, 237, 0.12);
+
+  --sidebar-w: 248px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,23 +42,158 @@ body {
 }
 
 input, select, textarea {
-  background: var(--bg3);
+  background: var(--bg2);
   border: 1px solid var(--border);
   color: var(--text1);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   width: 100%;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--blue);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 input::placeholder { color: var(--text3); }
 
-select option { background: var(--bg3); color: var(--text1); }
+select option { background: var(--bg2); color: var(--text1); }
 
 button { cursor: pointer; font-family: inherit; }
+
+/* ───────── Layout con sidebar ───────── */
+.app-shell { min-height: 100vh; display: flex; background: var(--bg); }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.sidebar-brand {
+  padding: 18px 18px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-nav { padding: 10px 10px 16px; flex: 1; }
+
+.nav-group-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 14px 10px 6px;
+}
+
+.nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text2);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text1); }
+.nav-item.activo { background: var(--primary); color: #fff; }
+
+.sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--border); }
+
+.main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.topbar-mobile {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.main-content { width: 100%; max-width: 1180px; margin: 0 auto; padding: 24px 20px 48px; }
+
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.2);
+  }
+  .sidebar.abierta { transform: translateX(0); }
+  .sidebar-backdrop.visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 35;
+  }
+  .topbar-mobile { display: flex; }
+  .main-content { padding: 18px 14px 40px; }
+}
+
+/* ───────── Accesos rápidos del inicio ───────── */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.quick-tile {
+  position: relative;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 112px;
+  justify-content: center;
+  color: var(--text1);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+.quick-tile:hover { border-color: var(--primary); box-shadow: 0 4px 14px rgba(242, 107, 29, 0.18); transform: translateY(-1px); }
+.quick-tile .quick-icon { font-size: 30px; line-height: 1; }
+.quick-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}

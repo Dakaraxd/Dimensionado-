@@ -94,20 +94,20 @@ export default function Historial() {
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '24px', flexWrap: 'wrap' }}>
         <button onClick={() => { setVista('meses'); setMesSeleccionado(null); setDiaSeleccionado(null); setBoletaSeleccionada(null) }}
-          style={{ background: 'transparent', border: 'none', fontWeight: '500', cursor: 'pointer', color: vista === 'meses' ? 'var(--text1)' : 'var(--blue)', fontSize: '13px' }}>
+          style={{ background: 'transparent', border: 'none', fontWeight: '500', cursor: 'pointer', color: vista === 'meses' ? 'var(--text1)' : 'var(--primary)', fontSize: '13px' }}>
           Historial
         </button>
         {mesSeleccionado && <>
           <span style={{ color: 'var(--text3)' }}>/</span>
           <button onClick={() => { setVista('dias'); setDiaSeleccionado(null); setBoletaSeleccionada(null) }}
-            style={{ background: 'transparent', border: 'none', fontWeight: '500', cursor: 'pointer', color: vista === 'dias' ? 'var(--text1)' : 'var(--blue)', fontSize: '13px', textTransform: 'capitalize' }}>
+            style={{ background: 'transparent', border: 'none', fontWeight: '500', cursor: 'pointer', color: vista === 'dias' ? 'var(--text1)' : 'var(--primary)', fontSize: '13px', textTransform: 'capitalize' }}>
             {nombreMes(mesSeleccionado)}
           </button>
         </>}
         {diaSeleccionado && <>
           <span style={{ color: 'var(--text3)' }}>/</span>
           <button onClick={() => { setVista('boletas'); setBoletaSeleccionada(null) }}
-            style={{ background: 'transparent', border: 'none', fontWeight: '500', cursor: 'pointer', color: vista === 'boletas' ? 'var(--text1)' : 'var(--blue)', fontSize: '13px' }}>
+            style={{ background: 'transparent', border: 'none', fontWeight: '500', cursor: 'pointer', color: vista === 'boletas' ? 'var(--text1)' : 'var(--primary)', fontSize: '13px' }}>
             Día {diaSeleccionado}
           </button>
         </>}
@@ -140,7 +140,7 @@ export default function Historial() {
                     <h3 style={{ fontSize: '18px', fontWeight: '500', color: 'var(--text1)', textTransform: 'capitalize', marginBottom: '12px' }}>
                       {new Date(key.split('-')[0], key.split('-')[1] - 1).toLocaleDateString('es-CL', { month: 'long' })}
                     </h3>
-                    <p style={{ fontSize: '26px', fontWeight: '500', color: 'var(--blue)', marginBottom: '2px' }}>{total}</p>
+                    <p style={{ fontSize: '26px', fontWeight: '500', color: 'var(--primary)', marginBottom: '2px' }}>{total}</p>
                     <p style={{ fontSize: '11px', color: 'var(--text3)' }}>planchas vendidas</p>
                     <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>{boletas} boleta{boletas !== 1 ? 's' : ''}</p>
                   </button>
@@ -167,7 +167,7 @@ export default function Historial() {
                 <button key={dia} onClick={() => { setDiaSeleccionado(parseInt(dia)); setVista('boletas') }}
                   style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ background: 'var(--blue-soft)', color: 'var(--blue)', fontWeight: '500', fontSize: '20px', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: '500', fontSize: '20px', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {dia}
                     </div>
                     <div>
@@ -204,7 +204,7 @@ export default function Historial() {
                 <button key={boleta} onClick={() => { setBoletaSeleccionada(boleta); setVista('detalle') }}
                   style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ background: 'var(--blue)', color: '#fff', fontWeight: '500', fontSize: '11px', padding: '6px 10px', borderRadius: '8px' }}>
+                    <div style={{ background: 'var(--primary)', color: '#fff', fontWeight: '500', fontSize: '11px', padding: '6px 10px', borderRadius: '8px' }}>
                       #{boleta}
                     </div>
                     <div>
@@ -244,7 +244,7 @@ export default function Historial() {
             {porBoleta[boletaSeleccionada]?.map(o => (
               <div key={o.id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ background: 'var(--blue-soft)', color: 'var(--blue)', fontSize: '11px', fontWeight: '500', padding: '2px 8px', borderRadius: '99px' }}>
+                  <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontSize: '11px', fontWeight: '500', padding: '2px 8px', borderRadius: '99px' }}>
                     {o.tipo?.categoria}
                   </span>
                   <div>

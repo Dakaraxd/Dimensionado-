@@ -44,7 +44,7 @@ export default function ResetPassword() {
       }}>
         <div style={{ marginBottom: '28px' }}>
           <div style={{
-            width: '40px', height: '40px', borderRadius: '10px', background: 'var(--blue)',
+            width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '16px'
           }}>🔑</div>
           <h1 style={{ fontSize: '20px', fontWeight: '500', color: 'var(--text1)', marginBottom: '4px' }}>
@@ -59,7 +59,7 @@ export default function ResetPassword() {
               <p style={{ fontSize: '13px', color: 'var(--green)' }}>✓ Contraseña actualizada correctamente</p>
             </div>
             <button onClick={signOut}
-              style={{ width: '100%', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '500' }}>
+              style={{ width: '100%', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '500' }}>
               Ir a iniciar sesión
             </button>
           </div>
@@ -93,7 +93,7 @@ export default function ResetPassword() {
 
             <button type="submit" disabled={loading}
               style={{
-                background: loading ? 'var(--bg3)' : 'var(--blue)', color: '#fff', border: 'none',
+                background: loading ? 'var(--bg3)' : 'var(--primary)', color: '#fff', border: 'none',
                 borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '500',
                 marginTop: '4px', opacity: loading ? 0.7 : 1
               }}>

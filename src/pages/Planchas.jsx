@@ -17,18 +17,18 @@ export default function Planchas() {
   const categorias = CATEGORIAS_CON_SERVICIOS
 
   const categoriaColorDark = {
-    'Melamina': { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: 'rgba(139,92,246,0.3)' },
-    'Cholguán': { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: 'rgba(245,158,11,0.3)' },
-    'Terciado Estructural': { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.3)' },
-    'Terciado Moldaje': { bg: 'rgba(20,184,166,0.12)', color: '#2dd4bf', border: 'rgba(20,184,166,0.3)' },
-    'Terciado Mueblería': { bg: 'rgba(6,182,212,0.12)', color: '#22d3ee', border: 'rgba(6,182,212,0.3)' },
-    'MDF Ranurado': { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.3)' },
-    'MDF Blanco': { bg: 'rgba(14,165,233,0.12)', color: '#38bdf8', border: 'rgba(14,165,233,0.3)' },
-    'Placa Aglomerado': { bg: 'rgba(249,115,22,0.12)', color: '#fb923c', border: 'rgba(249,115,22,0.3)' },
-    'Tablero OSB': { bg: 'rgba(234,179,8,0.12)', color: '#facc15', border: 'rgba(234,179,8,0.3)' },
-    'Placa Trupán': { bg: 'rgba(132,204,22,0.12)', color: '#a3e635', border: 'rgba(132,204,22,0.3)' },
-    'Otros': { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
-    'Servicios': { bg: 'rgba(239,68,68,0.12)', color: '#f87171', border: 'rgba(239,68,68,0.3)' },
+    'Melamina': { bg: 'rgba(139,92,246,0.12)', color: '#6d28d9', border: 'rgba(139,92,246,0.3)' },
+    'Cholguán': { bg: 'rgba(245,158,11,0.12)', color: '#b45309', border: 'rgba(245,158,11,0.3)' },
+    'Terciado Estructural': { bg: 'rgba(16,185,129,0.12)', color: '#047857', border: 'rgba(16,185,129,0.3)' },
+    'Terciado Moldaje': { bg: 'rgba(20,184,166,0.12)', color: '#0f766e', border: 'rgba(20,184,166,0.3)' },
+    'Terciado Mueblería': { bg: 'rgba(6,182,212,0.12)', color: '#0e7490', border: 'rgba(6,182,212,0.3)' },
+    'MDF Ranurado': { bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8', border: 'rgba(59,130,246,0.3)' },
+    'MDF Blanco': { bg: 'rgba(14,165,233,0.12)', color: '#0369a1', border: 'rgba(14,165,233,0.3)' },
+    'Placa Aglomerado': { bg: 'rgba(249,115,22,0.12)', color: '#c2410c', border: 'rgba(249,115,22,0.3)' },
+    'Tablero OSB': { bg: 'rgba(234,179,8,0.12)', color: '#a16207', border: 'rgba(234,179,8,0.3)' },
+    'Placa Trupán': { bg: 'rgba(132,204,22,0.12)', color: '#4d7c0f', border: 'rgba(132,204,22,0.3)' },
+    'Otros': { bg: 'rgba(107,114,128,0.12)', color: '#4b5563', border: 'rgba(107,114,128,0.3)' },
+    'Servicios': { bg: 'rgba(239,68,68,0.12)', color: '#b91c1c', border: 'rgba(239,68,68,0.3)' },
   }
 
   useEffect(() => { fetchPlanchas() }, [])
@@ -137,7 +137,7 @@ export default function Planchas() {
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{planchas.length} tipos registrados</p>
         </div>
         <button onClick={abrirFormNuevo}
-          style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
+          style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
           + Nueva
         </button>
       </div>
@@ -178,7 +178,7 @@ export default function Planchas() {
           {error && <p style={{ fontSize: '13px', color: 'var(--red)', marginTop: '12px' }}>{error}</p>}
           <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
             <button type="submit" disabled={guardando}
-              style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 20px', fontSize: '13px', fontWeight: '500', opacity: guardando ? 0.7 : 1 }}>
+              style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 20px', fontSize: '13px', fontWeight: '500', opacity: guardando ? 0.7 : 1 }}>
               {guardando ? 'Guardando...' : 'Guardar'}
             </button>
             <button type="button" onClick={() => setShowForm(false)}
@@ -223,7 +223,7 @@ export default function Planchas() {
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div style={{ display: 'flex', gap: '12px' }}>
-                        <button onClick={() => abrirFormEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--blue)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => abrirFormEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
                         <button onClick={() => handleToggleActivo(p)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}>
                           {p.activo ? 'Desactivar' : 'Activar'}
                         </button>
@@ -275,7 +275,7 @@ export default function Planchas() {
                             </td>
                             <td style={{ padding: '10px 16px' }}>
                               <div style={{ display: 'flex', gap: '12px' }}>
-                                <button onClick={() => abrirFormEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--blue)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
+                                <button onClick={() => abrirFormEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
                                 <button onClick={() => handleToggleActivo(p)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}>
                                   {p.activo ? 'Desactivar' : 'Activar'}
                                 </button>

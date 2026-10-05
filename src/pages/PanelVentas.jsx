@@ -1,12 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Cell
+  CartesianGrid, Tooltip, Cell, LabelList, Legend
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { aYMD } from '../lib/fechas'
 
-const COLORES_BARRAS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16']
+const COLORES_BARRAS = ['#f26b1d', '#2563eb', '#15803d', '#7c3aed', '#dc2626', '#0891b2', '#db2777', '#65a30d']
+const COLOR_PRIMARIO = '#f26b1d'
+const UMBRAL_STOCK_BAJO = 10
+const EJE_TICK = { fill: '#6b7280', fontSize: 11 }
+const GRILLA = 'rgba(15,23,42,0.08)'
 
 function primerDiaMes(offsetMeses = 0) {
   const d = new Date()
@@ -28,9 +32,22 @@ const cardStyle = {
 function TooltipPersonalizado({ active, payload, label, sufijo = 'planchas' }) {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}>
       <p style={{ color: 'var(--text2)', marginBottom: '2px' }}>{label}</p>
-      <p style={{ color: 'var(--text1)', fontWeight: '500' }}>{payload[0].value} {sufijo}</p>
+      <p style={{ color: 'var(--text1)', fontWeight: '600' }}>{payload[0].value} {sufijo}</p>
+    </div>
+  )
+}
+
+function Scorecard({ icono, titulo, valor, detalle, colorValor = 'var(--text1)', colorDetalle = 'var(--text3)' }) {
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <span style={{ fontSize: '18px' }}>{icono}</span>
+        <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: '600' }}>{titulo}</p>
+      </div>
+      <p style={{ fontSize: '28px', fontWeight: '700', color: colorValor, lineHeight: 1.15, wordBreak: 'break-word' }}>{valor}</p>
+      <p style={{ fontSize: '12px', color: colorDetalle, marginTop: '4px' }}>{detalle}</p>
     </div>
   )
 }
@@ -38,6 +55,10 @@ function TooltipPersonalizado({ active, payload, label, sufijo = 'planchas' }) {
 export default function PanelVentas() {
   const [offsetMeses, setOffsetMeses] = useState(0)
   const [ordenes, setOrdenes] = useState([])
+  const [totalMesAnterior, setTotalMesAnterior] = useState(0)
+  const [dimensionadosMes, setDimensionadosMes] = useState(0)
+  const [pendientes, setPendientes] = useState(0)
+  const [stock, setStock] = useState({ total: 0, tiposBajos: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exportando, setExportando] = useState(false)
@@ -49,23 +70,37 @@ export default function PanelVentas() {
   async function fetchVentas() {
     setLoading(true)
     setError('')
-    const { data, error: err } = await supabase
-      .from('ordenes')
-      .select(`
-        id, cantidad, aprobado_en, nro_boleta,
-        tipo:tipos_plancha!tipo_plancha_id(nombre, medida, categoria)
-      `)
-      .eq('estado', 'aprobada')
-      .gte('aprobado_en', `${aYMD(desde)}T00:00:00`)
-      .lt('aprobado_en', `${aYMD(hasta)}T00:00:00`)
-      .order('aprobado_en', { ascending: true })
+    const { desde: desdeAnt } = rangoMes(primerDiaMes(offsetMeses - 1))
+    const rango = (d1, d2) => [`${aYMD(d1)}T00:00:00`, `${aYMD(d2)}T00:00:00`]
+    const [ini, fin] = rango(desde, hasta)
+    const [iniAnt, finAnt] = rango(desdeAnt, desde)
 
-    if (err) {
+    const [ventas, anterior, proyectos, pend, stockRes] = await Promise.all([
+      supabase
+        .from('ordenes')
+        .select('id, cantidad, aprobado_en, nro_boleta, tipo:tipos_plancha!tipo_plancha_id(nombre, medida, categoria)')
+        .eq('estado', 'aprobada').gte('aprobado_en', ini).lt('aprobado_en', fin)
+        .order('aprobado_en', { ascending: true }),
+      supabase.from('ordenes').select('cantidad').eq('estado', 'aprobada').gte('aprobado_en', iniAnt).lt('aprobado_en', finAnt),
+      supabase.from('proyectos_dimensionado').select('id', { count: 'exact', head: true }).gte('creado_en', ini).lt('creado_en', fin),
+      supabase.from('ordenes').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+      supabase.from('vista_stock_general').select('disponible, plancha_categoria').not('plancha_categoria', 'in', '("Servicios","Otros")'),
+    ])
+
+    if (ventas.error) {
       setError('No se pudieron cargar las ventas del mes')
       setOrdenes([])
     } else {
-      setOrdenes(data ?? [])
+      setOrdenes(ventas.data ?? [])
     }
+    setTotalMesAnterior((anterior.data ?? []).reduce((s, o) => s + o.cantidad, 0))
+    setDimensionadosMes(proyectos.count ?? 0)
+    setPendientes(pend.count ?? 0)
+    const filasStock = stockRes.data ?? []
+    setStock({
+      total: filasStock.reduce((s, f) => s + (f.disponible ?? 0), 0),
+      tiposBajos: filasStock.filter(f => (f.disponible ?? 0) <= UMBRAL_STOCK_BAJO).length
+    })
     setLoading(false)
   }
 
@@ -74,10 +109,9 @@ export default function PanelVentas() {
 
   const stats = useMemo(() => {
     const totalPlanchas = ordenes.reduce((sum, o) => sum + o.cantidad, 0)
-    const boletas = new Set(ordenes.map(o => o.nro_boleta).filter(Boolean)).size
 
     // Volumen por día del mes
-    const diasEnMes = hasta.getDate ? new Date(mesBase.getFullYear(), mesBase.getMonth() + 1, 0).getDate() : 30
+    const diasEnMes = new Date(mesBase.getFullYear(), mesBase.getMonth() + 1, 0).getDate()
     const porDiaMap = {}
     for (let d = 1; d <= diasEnMes; d++) porDiaMap[d] = 0
     ordenes.forEach(o => {
@@ -113,11 +147,20 @@ export default function PanelVentas() {
       .map(([categoria, cantidad]) => ({ categoria, cantidad }))
       .sort((a, b) => b.cantidad - a.cantidad)
 
-    const promedioDiario = diasEnMes > 0 ? (totalPlanchas / diasEnMes) : 0
-    const mejorDia = porDia.reduce((max, d) => d.cantidad > max.cantidad ? d : max, { dia: null, cantidad: 0, fecha: null })
+    return { totalPlanchas, porDia, porTipo, masVendidos, menosVendidos, porCategoria }
+  }, [ordenes, mesBase])
 
-    return { totalPlanchas, boletas, porDia, porTipo, masVendidos, menosVendidos, porCategoria, promedioDiario, mejorDia }
-  }, [ordenes, mesBase, hasta])
+  // Variación contra el mes anterior
+  const variacion = useMemo(() => {
+    if (totalMesAnterior === 0) return null
+    return Math.round(((stats.totalPlanchas - totalMesAnterior) / totalMesAnterior) * 100)
+  }, [stats.totalPlanchas, totalMesAnterior])
+
+  const detalleVentas = variacion === null
+    ? 'Sin ventas el mes anterior para comparar'
+    : `${variacion >= 0 ? '▲' : '▼'} ${Math.abs(variacion)}% vs mes anterior (${totalMesAnterior})`
+  const colorDetalleVentas = variacion === null ? 'var(--text3)' : variacion >= 0 ? 'var(--green)' : 'var(--red)'
+  const top = stats.porTipo[0]
 
   async function exportarPDF() {
     setExportando(true)
@@ -148,7 +191,7 @@ export default function PanelVentas() {
         pdf.setTextColor(30, 32, 39)
         pdf.text(texto, margen, y)
         y += 3
-        pdf.setDrawColor(59, 130, 246)
+        pdf.setDrawColor(242, 107, 29)
         pdf.setLineWidth(0.5)
         pdf.line(margen, y, margen + anchoUtil, y)
         y += 7
@@ -165,8 +208,7 @@ export default function PanelVentas() {
       pdf.setFont(undefined, 'normal')
       pdf.setFontSize(12)
       pdf.setTextColor(80, 80, 80)
-      const nombreMesCapitalizado = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)
-      pdf.text(nombreMesCapitalizado, margen, y)
+      pdf.text(nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1), margen, y)
       y += 5
       pdf.setFontSize(9)
       pdf.setTextColor(130, 130, 130)
@@ -177,9 +219,9 @@ export default function PanelVentas() {
       tituloSeccion('Resumen del mes')
       const resumenFilas = [
         ['Planchas vendidas', String(stats.totalPlanchas)],
-        ['Boletas emitidas', String(stats.boletas)],
-        ['Promedio diario', stats.promedioDiario.toFixed(1)],
-        ['Mejor día', stats.mejorDia.cantidad > 0 ? stats.mejorDia.fecha.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric' }) : '—']
+        ['Mes anterior', variacion === null ? 'Sin ventas para comparar' : `${totalMesAnterior} planchas (${variacion >= 0 ? '+' : ''}${variacion}%)`],
+        ['Proyectos dimensionados', String(dimensionadosMes)],
+        ['Lo más vendido', top ? `${top.nombre} (${top.cantidad})` : '—']
       ]
       autoTable(pdf, {
         startY: y,
@@ -194,9 +236,9 @@ export default function PanelVentas() {
       // ---- Flujo del mes: gráfico de línea vectorial ----
       tituloSeccion('Flujo del mes — planchas vendidas por día')
       const chartH = 50
-      const chartW = anchoUtil
-      asegurarEspacio(chartH + 12)
-      const chartX = margen
+      const chartW = anchoUtil - 6
+      asegurarEspacio(chartH + 16)
+      const chartX = margen + 6
       const chartY = y
       const maxCantidad = Math.max(1, ...stats.porDia.map(d => d.cantidad))
 
@@ -214,7 +256,7 @@ export default function PanelVentas() {
         x: chartX + (chartW * i) / (stats.porDia.length - 1 || 1),
         y: chartY + chartH - (d.cantidad / maxCantidad) * chartH
       }))
-      pdf.setDrawColor(59, 130, 246)
+      pdf.setDrawColor(242, 107, 29)
       pdf.setLineWidth(0.6)
       for (let i = 0; i < puntos.length - 1; i++) {
         pdf.line(puntos[i].x, puntos[i].y, puntos[i + 1].x, puntos[i + 1].y)
@@ -225,7 +267,10 @@ export default function PanelVentas() {
       stats.porDia.forEach((d, i) => {
         if (i % pasoEtiqueta === 0) pdf.text(d.dia, puntos[i].x, chartY + chartH + 5, { align: 'center' })
       })
-      y = chartY + chartH + 12
+      pdf.setFontSize(7)
+      pdf.text('Día del mes', chartX + chartW / 2, chartY + chartH + 10, { align: 'center' })
+      pdf.text('Planchas', margen, chartY - 2)
+      y = chartY + chartH + 16
 
       // ---- Tabla: ventas por tipo de plancha (ranking completo, de mayor a menor) ----
       tituloSeccion('Ventas por tipo de plancha')
@@ -235,7 +280,7 @@ export default function PanelVentas() {
         head: [['#', 'Tipo de plancha', 'Planchas vendidas']],
         body: stats.porTipo.map((t, i) => [String(i + 1), t.nombre, String(t.cantidad)]),
         theme: 'striped',
-        headStyles: { fillColor: [59, 130, 246], fontSize: 9 },
+        headStyles: { fillColor: [242, 107, 29], fontSize: 9 },
         bodyStyles: { fontSize: 9 },
         columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right', cellWidth: 40 } }
       })
@@ -250,7 +295,7 @@ export default function PanelVentas() {
           head: [['Categoría', 'Planchas vendidas']],
           body: stats.porCategoria.map(c => [c.categoria, String(c.cantidad)]),
           theme: 'striped',
-          headStyles: { fillColor: [16, 185, 129], fontSize: 9 },
+          headStyles: { fillColor: [21, 128, 61], fontSize: 9 },
           bodyStyles: { fontSize: 9 },
           columnStyles: { 1: { halign: 'right', cellWidth: 40 } }
         })
@@ -265,141 +310,149 @@ export default function PanelVentas() {
     }
   }
 
+  const sinVentas = !loading && ordenes.length === 0
+  const botonSecundario = { background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px' }
+
   return (
     <div style={{ color: 'var(--text1)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Panel de ventas</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '2px' }}>Panel de ventas</h2>
           <p style={{ fontSize: '13px', color: 'var(--text3)', textTransform: 'capitalize' }}>{nombreMes}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button onClick={() => setOffsetMeses(m => m - 1)}
-            style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px' }}>
-            ← Mes anterior
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button onClick={() => setOffsetMeses(m => m - 1)} style={botonSecundario}>← Mes anterior</button>
           <button onClick={() => setOffsetMeses(m => m + 1)} disabled={offsetMeses >= 0}
-            style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: offsetMeses >= 0 ? 'var(--text3)' : 'var(--text2)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', opacity: offsetMeses >= 0 ? 0.5 : 1, cursor: offsetMeses >= 0 ? 'not-allowed' : 'pointer' }}>
+            style={{ ...botonSecundario, opacity: offsetMeses >= 0 ? 0.5 : 1, cursor: offsetMeses >= 0 ? 'not-allowed' : 'pointer' }}>
             Mes siguiente →
           </button>
-          <button onClick={exportarPDF} disabled={exportando || loading || ordenes.length === 0}
-            style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500', opacity: (exportando || loading || ordenes.length === 0) ? 0.6 : 1 }}>
+          <button onClick={exportarPDF} disabled={exportando || loading || sinVentas}
+            style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '600', opacity: (exportando || loading || sinVentas) ? 0.55 : 1 }}>
             {exportando ? 'Generando...' : '⬇ Exportar PDF'}
           </button>
         </div>
       </div>
 
       {error && (
-        <div style={{ background: 'var(--red-soft)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '10px 16px', marginBottom: '16px' }}>
+        <div style={{ background: 'var(--red-soft)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '10px', padding: '10px 16px', marginBottom: '16px' }}>
           <p style={{ fontSize: '13px', color: 'var(--red)' }}>{error}</p>
         </div>
       )}
 
       {loading ? (
-        <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando ventas del mes...</p>
-      ) : ordenes.length === 0 ? (
-        <div style={cardStyle}>
-          <p style={{ color: 'var(--text3)', textAlign: 'center' }}>No hay ventas aprobadas para este mes.</p>
-        </div>
+        <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando panel...</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Tarjetas resumen */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' }}>
-            <div style={cardStyle}>
-              <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '6px' }}>Planchas vendidas</p>
-              <p style={{ fontSize: '28px', fontWeight: '600', color: 'var(--blue)' }}>{stats.totalPlanchas}</p>
-            </div>
-            <div style={cardStyle}>
-              <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '6px' }}>Boletas emitidas</p>
-              <p style={{ fontSize: '28px', fontWeight: '600', color: 'var(--green)' }}>{stats.boletas}</p>
-            </div>
-            <div style={cardStyle}>
-              <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '6px' }}>Promedio diario</p>
-              <p style={{ fontSize: '28px', fontWeight: '600', color: 'var(--amber)' }}>{stats.promedioDiario.toFixed(1)}</p>
-            </div>
-            <div style={cardStyle}>
-              <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '6px' }}>Mejor día</p>
-              <p style={{ fontSize: '22px', fontWeight: '600', color: 'var(--purple)', textTransform: 'capitalize' }}>
-                {stats.mejorDia.cantidad > 0
-                  ? stats.mejorDia.fecha.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric' })
-                  : '—'}
-              </p>
-            </div>
+          {/* Indicadores */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
+            <Scorecard icono="🪵" titulo="Planchas vendidas" valor={stats.totalPlanchas}
+              detalle={detalleVentas} colorValor="var(--primary)" colorDetalle={colorDetalleVentas} />
+            <Scorecard icono="🕐" titulo="Órdenes pendientes (ahora)" valor={pendientes}
+              detalle={pendientes > 0 ? 'Esperando aprobación de boleta' : 'Todo al día'}
+              colorValor={pendientes > 0 ? 'var(--amber)' : 'var(--green)'} />
+            <Scorecard icono="📦" titulo="Stock disponible (ahora)" valor={stock.total}
+              detalle={stock.tiposBajos > 0 ? `${stock.tiposBajos} tipo${stock.tiposBajos !== 1 ? 's' : ''} con stock bajo (≤${UMBRAL_STOCK_BAJO})` : 'Sin alertas de stock bajo'}
+              colorDetalle={stock.tiposBajos > 0 ? 'var(--red)' : 'var(--text3)'} />
+            <Scorecard icono="✂️" titulo="Proyectos dimensionados" valor={dimensionadosMes} detalle="Creados en el mes" />
+            <Scorecard icono="🏆" titulo="Lo más vendido" valor={top ? top.nombre : '—'}
+              detalle={top ? `${top.cantidad} planchas en el mes` : 'Sin ventas en el mes'} colorValor="var(--text1)" />
           </div>
 
-          {/* Flujo del mes (volumen diario) */}
-          <div style={cardStyle}>
-            <p style={{ fontSize: '14px', fontWeight: '500', marginBottom: '14px' }}>Flujo del mes — planchas vendidas por día</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={stats.porDia} margin={{ left: -20, right: 10, top: 10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gradFlujo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="dia" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
-                <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<TooltipPersonalizado />} labelFormatter={d => `Día ${d}`} />
-                <Area type="monotone" dataKey="cantidad" stroke="#3b82f6" strokeWidth={2} fill="url(#gradFlujo)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {stats.porTipo.length <= 1 && (
-            <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '-10px' }}>
-              ℹ️ Este mes solo se vendió {stats.porTipo.length === 1 ? 'un tipo de plancha' : 'ningún tipo de plancha'}, por eso "más vendido" y "menos vendido" coinciden.
-            </p>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-            {/* Más vendidos */}
+          {sinVentas ? (
             <div style={cardStyle}>
-              <p style={{ fontSize: '14px', fontWeight: '500', marginBottom: '14px' }}>Lo más vendido</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={stats.masVendidos} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="nombre" width={130} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<TooltipPersonalizado />} />
-                  <Bar dataKey="cantidad" radius={[0, 6, 6, 0]}>
-                    {stats.masVendidos.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <p style={{ color: 'var(--text3)', textAlign: 'center' }}>No hay ventas aprobadas para este mes.</p>
             </div>
+          ) : (
+            <>
+              {/* Flujo del mes (volumen diario) */}
+              <div style={cardStyle}>
+                <p style={{ fontSize: '14px', fontWeight: '600' }}>Flujo del mes</p>
+                <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Planchas vendidas en cada día del mes</p>
+                <ResponsiveContainer width="100%" height={290}>
+                  <AreaChart data={stats.porDia} margin={{ left: 0, right: 12, top: 8, bottom: 22 }}>
+                    <defs>
+                      <linearGradient id="gradFlujo" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={COLOR_PRIMARIO} stopOpacity={0.45} />
+                        <stop offset="95%" stopColor={COLOR_PRIMARIO} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} vertical={false} />
+                    <XAxis dataKey="dia" tick={EJE_TICK} axisLine={{ stroke: GRILLA }} tickLine={false}
+                      label={{ value: 'Día del mes', position: 'insideBottom', offset: -12, fill: '#4b5563', fontSize: 12 }} />
+                    <YAxis tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={44}
+                      label={{ value: 'Planchas', angle: -90, position: 'insideLeft', fill: '#4b5563', fontSize: 12, style: { textAnchor: 'middle' } }} />
+                    <Tooltip content={<TooltipPersonalizado />} labelFormatter={d => `Día ${d}`} />
+                    <Legend verticalAlign="top" align="right" iconType="plainline" wrapperStyle={{ fontSize: 12, paddingBottom: 6 }} />
+                    <Area type="monotone" name="Planchas vendidas por día" dataKey="cantidad" stroke={COLOR_PRIMARIO} strokeWidth={2.5}
+                      fill="url(#gradFlujo)" dot={{ r: 3, fill: COLOR_PRIMARIO }} activeDot={{ r: 5 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* Menos vendidos */}
-            <div style={cardStyle}>
-              <p style={{ fontSize: '14px', fontWeight: '500', marginBottom: '14px' }}>Lo menos vendido</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={stats.menosVendidos} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="nombre" width={130} tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<TooltipPersonalizado />} />
-                  <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Más vendidos */}
+                <div style={cardStyle}>
+                  <p style={{ fontSize: '14px', fontWeight: '600' }}>Lo más vendido</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Top de tipos de plancha (cantidad de planchas)</p>
+                  <ResponsiveContainer width="100%" height={Math.max(150, stats.masVendidos.length * 46)}>
+                    <BarChart data={stats.masVendidos} layout="vertical" margin={{ left: 0, right: 40, top: 5, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} horizontal={false} />
+                      <XAxis type="number" tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nombre" width={140} tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
+                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]}>
+                        {stats.masVendidos.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
+                        <LabelList dataKey="cantidad" position="right" fill="#1f2937" fontSize={12} fontWeight={600} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
 
-          {/* Por categoría */}
-          {stats.porCategoria.length > 1 && (
-            <div style={cardStyle}>
-              <p style={{ fontSize: '14px', fontWeight: '500', marginBottom: '14px' }}>Ventas por categoría</p>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={stats.porCategoria} margin={{ left: -20, right: 10, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                  <XAxis dataKey="categoria" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} interval={0} angle={-20} textAnchor="end" height={60} />
-                  <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip content={<TooltipPersonalizado />} />
-                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
-                    {stats.porCategoria.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+                {/* Menos vendidos */}
+                <div style={cardStyle}>
+                  <p style={{ fontSize: '14px', fontWeight: '600' }}>Lo menos vendido</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Tipos con menor salida (cantidad de planchas)</p>
+                  <ResponsiveContainer width="100%" height={Math.max(150, stats.menosVendidos.length * 46)}>
+                    <BarChart data={stats.menosVendidos} layout="vertical" margin={{ left: 0, right: 40, top: 5, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} horizontal={false} />
+                      <XAxis type="number" tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nombre" width={140} tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
+                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} fill="#dc2626">
+                        <LabelList dataKey="cantidad" position="right" fill="#1f2937" fontSize={12} fontWeight={600} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {stats.porTipo.length <= 1 && (
+                <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '-10px' }}>
+                  ℹ️ Este mes solo se vendió un tipo de plancha, por eso "más vendido" y "menos vendido" coinciden.
+                </p>
+              )}
+
+              {/* Por categoría */}
+              {stats.porCategoria.length > 1 && (
+                <div style={cardStyle}>
+                  <p style={{ fontSize: '14px', fontWeight: '600' }}>Ventas por categoría</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Planchas vendidas agrupadas por categoría</p>
+                  <ResponsiveContainer width="100%" height={270}>
+                    <BarChart data={stats.porCategoria} margin={{ left: 0, right: 10, top: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} vertical={false} />
+                      <XAxis dataKey="categoria" tick={{ fill: '#374151', fontSize: 11 }} axisLine={{ stroke: GRILLA }} tickLine={false} interval={0} angle={-20} textAnchor="end" height={60} />
+                      <YAxis tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={44}
+                        label={{ value: 'Planchas', angle: -90, position: 'insideLeft', fill: '#4b5563', fontSize: 12, style: { textAnchor: 'middle' } }} />
+                      <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
+                      <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                        {stats.porCategoria.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
+                        <LabelList dataKey="cantidad" position="top" fill="#1f2937" fontSize={12} fontWeight={600} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

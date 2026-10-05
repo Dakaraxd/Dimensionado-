@@ -57,7 +57,7 @@ export default function Login() {
         <div style={{ marginBottom: '28px' }}>
           <div style={{
             width: '40px', height: '40px', borderRadius: '10px',
-            background: 'var(--blue)', display: 'flex',
+            background: 'var(--primary)', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
             fontSize: '20px', marginBottom: '16px'
           }}>🪵</div>
@@ -99,7 +99,7 @@ export default function Login() {
               )}
 
               <button type="submit" disabled={recuperando}
-                style={{ background: recuperando ? 'var(--bg3)' : 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '500', opacity: recuperando ? 0.7 : 1 }}>
+                style={{ background: recuperando ? 'var(--bg3)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '500', opacity: recuperando ? 0.7 : 1 }}>
                 {recuperando ? 'Enviando...' : 'Enviar link de recuperación'}
               </button>
               <button type="button" onClick={() => { setModoRecuperar(false); setError('') }}
@@ -146,7 +146,7 @@ export default function Login() {
               type="submit"
               disabled={loading}
               style={{
-                background: loading ? 'var(--bg3)' : 'var(--blue)',
+                background: loading ? 'var(--bg3)' : 'var(--primary)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
@@ -162,7 +162,7 @@ export default function Login() {
             </button>
 
             <button type="button" onClick={() => { setModoRecuperar(true); setError('') }}
-              style={{ background: 'transparent', border: 'none', color: 'var(--blue)', fontSize: '12px', alignSelf: 'center' }}>
+              style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', alignSelf: 'center' }}>
               ¿Olvidaste tu contraseña?
             </button>
           </form>

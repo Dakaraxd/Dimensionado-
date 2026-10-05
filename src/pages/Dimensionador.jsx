@@ -157,11 +157,11 @@ function DiagramaPlancha({ plancha, escala, planchaW, planchaH }) {
   const H = planchaH * escala
 
   return (
-    <div style={{ position: 'relative', width: W, height: H, border: '2px solid #555', background: '#2a2a2a', flexShrink: 0 }}>
+    <div style={{ position: 'relative', width: W, height: H, border: '2px solid #9ca3af', background: '#e5e7eb', flexShrink: 0 }}>
       <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
         <defs>
           <pattern id="diag" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="10" stroke="#444" strokeWidth="3" />
+            <line x1="0" y1="0" x2="0" y2="10" stroke="#d1d5db" strokeWidth="3" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#diag)" />
@@ -194,7 +194,7 @@ function DiagramaPlancha({ plancha, escala, planchaW, planchaH }) {
         )
       })}
 
-      <div style={{ position: 'absolute', bottom: 2, right: 4, fontSize: 9, color: '#aaa' }}>
+      <div style={{ position: 'absolute', bottom: 2, right: 4, fontSize: 9, color: '#6b7280' }}>
         {planchaW}×{planchaH}cm
       </div>
     </div>
@@ -485,7 +485,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
         pdf.setDrawColor(59, 130, 246); pdf.line(margin, 28, 195, 28)
 
         if (svgs[pi]) {
-          const canvas = await html2canvas(svgs[pi], { backgroundColor: '#2a2a2a', scale: 2 })
+          const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })
           const img = canvas.toDataURL('image/png')
           const dispW = 180, dispH = 240
           const ratio = dimensiones.h / dimensiones.w
@@ -522,7 +522,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
             <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{proyectos.length} proyectos guardados</p>
           </div>
           <button onClick={nuevoProyecto}
-            style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '500' }}>
+            style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '500' }}>
             + Nuevo proyecto
           </button>
         </div>
@@ -532,7 +532,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
             <p style={{ fontSize: '32px', marginBottom: '12px' }}>✂️</p>
             <p style={{ color: 'var(--text3)', fontSize: '14px' }}>No hay proyectos guardados aún.</p>
             <button onClick={nuevoProyecto}
-              style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '500', marginTop: '16px' }}>
+              style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '500', marginTop: '16px' }}>
               Crear primer proyecto
             </button>
           </div>
@@ -554,7 +554,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => cargarProyecto(p)}
-                    style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '8px', padding: '7px 14px', fontSize: '12px', fontWeight: '500' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid rgba(242,107,29,0.35)', borderRadius: '8px', padding: '7px 14px', fontSize: '12px', fontWeight: '500' }}>
                     Ver
                   </button>
                   {esAdmin && (
@@ -578,7 +578,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         <button onClick={() => setVista('proyectos')}
-          style={{ background: 'transparent', border: 'none', color: 'var(--blue)', fontSize: '13px', cursor: 'pointer' }}>
+          style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', cursor: 'pointer' }}>
           ← Volver a proyectos
         </button>
       </div>
@@ -592,18 +592,18 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               <div style={{
                 width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '12px', fontWeight: '600', flexShrink: 0,
-                background: i <= paso ? 'var(--blue)' : 'var(--bg3)',
+                background: i <= paso ? 'var(--primary)' : 'var(--bg3)',
                 color: i <= paso ? '#fff' : 'var(--text3)',
-                border: i === paso ? '2px solid #60a5fa' : 'none'
+                border: i === paso ? '2px solid #fdba74' : 'none'
               }}>
                 {i < paso ? '✓' : i + 1}
               </div>
-              <span style={{ fontSize: '12px', fontWeight: i === paso ? '600' : '400', color: i === paso ? 'var(--blue)' : i < paso ? 'var(--text2)' : 'var(--text3)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: i === paso ? '600' : '400', color: i === paso ? 'var(--primary)' : i < paso ? 'var(--text2)' : 'var(--text3)', whiteSpace: 'nowrap' }}>
                 {p}
               </span>
             </div>
             {i < PASOS.length - 1 && (
-              <div style={{ flex: 1, height: '1px', background: i < paso ? 'var(--blue)' : 'var(--border)', margin: '0 8px' }} />
+              <div style={{ flex: 1, height: '1px', background: i < paso ? 'var(--primary)' : 'var(--border)', margin: '0 8px' }} />
             )}
           </div>
         ))}
@@ -666,7 +666,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               if (!validarRut(cliente.rut)) { setError('El RUT ingresado no es válido (dígito verificador incorrecto)'); return }
               setError(''); setPaso(1)
             }}
-              style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 24px', fontSize: '13px', fontWeight: '500' }}>
+              style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 24px', fontSize: '13px', fontWeight: '500' }}>
               Siguiente →
             </button>
           </div>
@@ -697,7 +697,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
                 style={{
                   padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   cursor: 'pointer', borderBottom: '1px solid var(--border)',
-                  background: planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id ? 'var(--blue-soft)' : i % 2 === 0 ? 'var(--bg2)' : 'var(--bg3)',
+                  background: planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id ? 'var(--primary-soft)' : i % 2 === 0 ? 'var(--bg2)' : 'var(--bg3)',
                 }}>
                 <div>
                   <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text1)' }}>{p.plancha_nombre} {p.plancha_medida}</p>
@@ -705,8 +705,8 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
                 </div>
                 <div style={{
                   width: '18px', height: '18px', borderRadius: '3px',
-                  border: `2px solid ${planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id ? 'var(--blue)' : 'var(--border)'}`,
-                  background: planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id ? 'var(--blue)' : 'transparent',
+                  border: `2px solid ${planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id ? 'var(--primary)' : 'var(--border)'}`,
+                  background: planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id ? 'var(--primary)' : 'transparent',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                 }}>
                   {planchaSeleccionada?.tipo_plancha_id === p.tipo_plancha_id && <span style={{ color: '#fff', fontSize: '11px' }}>✓</span>}
@@ -724,7 +724,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               ← Volver
             </button>
             <button onClick={() => { if (!planchaSeleccionada) { setError('Selecciona un tablero'); return } setError(''); setPaso(2) }}
-              style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 24px', fontSize: '13px', fontWeight: '500' }}>
+              style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 24px', fontSize: '13px', fontWeight: '500' }}>
               Siguiente →
             </button>
           </div>
@@ -757,7 +757,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               </thead>
               <tbody>
                 {piezas.map((p, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(15,23,42,0.03)' }}>
                     <td style={{ padding: '8px 12px', color: 'var(--text3)', fontSize: '12px' }}>{i + 1}</td>
                     <td style={{ padding: '6px 8px' }}>
                       <input type="number" min="1" value={p.cantidad}
@@ -807,7 +807,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               ← Volver
             </button>
             <button onClick={calcular}
-              style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 24px', fontSize: '13px', fontWeight: '500' }}>
+              style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 24px', fontSize: '13px', fontWeight: '500' }}>
               Optimizar →
             </button>
           </div>
@@ -822,7 +822,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap' }}>
                 <div>
                   <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Tableros usados</p>
-                  <p style={{ fontSize: '24px', fontWeight: '500', color: 'var(--blue)' }}>{resultado.length}</p>
+                  <p style={{ fontSize: '24px', fontWeight: '500', color: 'var(--primary)' }}>{resultado.length}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Total piezas</p>
@@ -907,7 +907,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
                         </div>
                       ))}
                       <div style={{ padding: '7px 12px', display: 'grid', gridTemplateColumns: '40px 40px 1fr', gap: '8px', alignItems: 'center' }}>
-                        <div style={{ width: '28px', height: '14px', background: 'repeating-linear-gradient(45deg, #444 0px, #444 2px, #222 2px, #222 8px)', borderRadius: '3px' }} />
+                        <div style={{ width: '28px', height: '14px', background: 'repeating-linear-gradient(45deg, #d1d5db 0px, #d1d5db 2px, #e5e7eb 2px, #e5e7eb 8px)', borderRadius: '3px' }} />
                         <span style={{ fontSize: '12px', color: 'var(--text2)' }}>—</span>
                         <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Sobrante</span>
                       </div>

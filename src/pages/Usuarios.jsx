@@ -82,7 +82,7 @@ export default function Usuarios() {
 
   const rolColor = {
     administrador: { bg: 'var(--purple-soft)', color: 'var(--purple)' },
-    vendedor: { bg: 'var(--blue-soft)', color: 'var(--blue)' },
+    vendedor: { bg: 'var(--primary-soft)', color: 'var(--primary)' },
     solo_lectura: { bg: 'var(--bg3)', color: 'var(--text3)' }
   }
 
@@ -94,7 +94,7 @@ export default function Usuarios() {
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{usuarios.length} usuarios registrados</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setError(''); setExito('') }}
-          style={{ background: showForm ? 'var(--bg3)' : 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
+          style={{ background: showForm ? 'var(--bg3)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
           {showForm ? 'Cancelar' : '+ Nuevo usuario'}
         </button>
       </div>
@@ -140,7 +140,7 @@ export default function Usuarios() {
             <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>
           )}
           <button type="submit" disabled={creando}
-            style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 20px', fontSize: '13px', fontWeight: '500', marginTop: '16px', opacity: creando ? 0.7 : 1 }}>
+            style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 20px', fontSize: '13px', fontWeight: '500', marginTop: '16px', opacity: creando ? 0.7 : 1 }}>
             {creando ? 'Creando...' : 'Crear usuario'}
           </button>
         </form>
