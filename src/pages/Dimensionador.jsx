@@ -3,12 +3,11 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { hoyChile } from '../lib/fechas'
+import { calcularDistribucion, analizarSobrante, KERF } from '../lib/optimizador'
 
 // Dimensiones por defecto del tablero en cm (editables en el paso 2)
 const PLANCHA_W_DEFAULT = 249
 const PLANCHA_H_DEFAULT = 182
-// Espesor del corte de sierra (kerf) en cm: cada corte consume material
-const KERF = 0.4
 
 function formatRut(rut) {
   const clean = rut.replace(/[^0-9kK]/g, '').toUpperCase()
@@ -39,116 +38,6 @@ function validarRut(rut) {
 // RUT parcialmente enmascarado para documentos exportados (minimización de datos)
 function maskRut(rut) {
   return rut.replace(/\d{3}-[\dkK]$/i, '•••-•')
-}
-
-function mejorEspacio(espacios, w, h) {
-  // Best-Fit: el espacio más pequeño donde quepa
-  let mejor = null
-  for (const e of espacios) {
-    if (e.w >= w && e.h >= h && (!mejor || e.w * e.h < mejor.w * mejor.h)) mejor = e
-  }
-  return mejor
-}
-
-function intentarColocar(plancha, corte) {
-  const espacio = mejorEspacio(plancha.espacios, corte.largo, corte.ancho)
-  if (espacio) {
-    plancha.cortes.push({ ...corte, x: espacio.x, y: espacio.y, w: corte.largo, h: corte.ancho })
-    actualizarEspacios(plancha.espacios, espacio, corte.largo, corte.ancho)
-    return true
-  }
-  // Rotación 90°
-  if (corte.largo !== corte.ancho) {
-    const espacioRot = mejorEspacio(plancha.espacios, corte.ancho, corte.largo)
-    if (espacioRot) {
-      plancha.cortes.push({ ...corte, x: espacioRot.x, y: espacioRot.y, w: corte.ancho, h: corte.largo, rotado: true })
-      actualizarEspacios(plancha.espacios, espacioRot, corte.ancho, corte.largo)
-      return true
-    }
-  }
-  return false
-}
-
-function guillotineBFD(cortesOrdenados, W, H) {
-  const planchas = []
-  const noColocadas = []
-
-  for (const corte of cortesOrdenados) {
-    let colocado = false
-    for (const plancha of planchas) {
-      if (intentarColocar(plancha, corte)) { colocado = true; break }
-    }
-    if (!colocado) {
-      const nueva = { id: planchas.length + 1, cortes: [], espacios: [{ x: 0, y: 0, w: W, h: H }] }
-      if (intentarColocar(nueva, corte)) {
-        planchas.push(nueva)
-      } else {
-        // No cabe ni rotada en una plancha vacía: reportarla, nunca descartarla en silencio
-        noColocadas.push(corte)
-      }
-    }
-  }
-  return { planchas, noColocadas }
-}
-
-function calcularDistribucion(cortes, W, H) {
-  const pendientes = []
-  cortes.forEach((c, ci) => {
-    for (let i = 0; i < c.cantidad; i++) {
-      pendientes.push({ ...c, key: `${ci}-${i}`, colorIdx: ci })
-    }
-  })
-
-  // Generar múltiples estrategias de ordenamiento
-  const estrategias = [
-    // 1. Area descendente (BFD clásico)
-    [...pendientes].sort((a, b) => (b.largo * b.ancho) - (a.largo * a.ancho)),
-    // 2. Altura descendente
-    [...pendientes].sort((a, b) => b.largo - a.largo),
-    // 3. Ancho descendente
-    [...pendientes].sort((a, b) => b.ancho - a.ancho),
-    // 4. Perímetro descendente
-    [...pendientes].sort((a, b) => (b.largo + b.ancho) - (a.largo + a.ancho)),
-    // 5. Área ascendente (piezas chicas primero)
-    [...pendientes].sort((a, b) => (a.largo * a.ancho) - (b.largo * b.ancho)),
-    // 6. Ratio largo/ancho descendente
-    [...pendientes].sort((a, b) => (b.largo / b.ancho) - (a.largo / a.ancho)),
-  ]
-
-  // Evaluar cada estrategia y calcular función objetivo
-  let mejorResultado = null
-  let mejorPuntaje = -Infinity
-
-  for (const estrategia of estrategias) {
-    const { planchas, noColocadas } = guillotineBFD(estrategia, W, H)
-
-    const totalTableros = planchas.length || 1
-    const aprovechamiento = planchas.reduce((sum, p) => {
-      const areaUsada = p.cortes.reduce((s, c) => s + c.w * c.h, 0)
-      return sum + (areaUsada / (W * H))
-    }, 0) / totalTableros
-
-    // Piezas sin ubicar penalizan por sobre todo; luego menos tableros y mayor aprovechamiento
-    const puntaje = (-noColocadas.length * 100000) + (-planchas.length * 1000) + (aprovechamiento * 100)
-
-    if (puntaje > mejorPuntaje) {
-      mejorPuntaje = puntaje
-      mejorResultado = { planchas, noColocadas }
-    }
-  }
-
-  return mejorResultado
-}
-
-function actualizarEspacios(espacios, espacio, w, h) {
-  const idx = espacios.indexOf(espacio)
-  espacios.splice(idx, 1)
-  // El kerf se descuenta del espacio libre: la sierra consume material en cada corte
-  const wk = w + KERF
-  const hk = h + KERF
-  if (espacio.w - wk > 0) espacios.push({ x: espacio.x + wk, y: espacio.y, w: espacio.w - wk, h })
-  if (espacio.h - hk > 0) espacios.push({ x: espacio.x, y: espacio.y + hk, w: espacio.w, h: espacio.h - hk })
-  espacios.sort((a, b) => (a.y - b.y) || (a.x - b.x))
 }
 
 const COLORES = ['#4a9eff', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#22d3ee', '#fb923c', '#86efac', '#f472b6', '#67e8f9']
@@ -227,6 +116,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
   const [filtroFecha, setFiltroFecha] = useState('todos') // 'todos' | 'hoy' | 'semana' | 'mes'
   const [busquedaProyecto, setBusquedaProyecto] = useState('')
   const [filtroVendedor, setFiltroVendedor] = useState('')
+  const [permitirGiro, setPermitirGiro] = useState(true)
   const diagramaRef = useRef(null)
 
   const esAdmin = profile?.rol === 'administrador'
@@ -395,10 +285,12 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
     for (const p of piezasValidas) {
       const l = parseFloat(p.largo)
       const a = parseFloat(p.ancho)
-      // Una pieza es válida si cabe derecha o rotada 90°
-      const cabe = (l <= W && a <= H) || (a <= W && l <= H)
+      // Una pieza es válida si cabe derecha o, si se permite girar, rotada 90°
+      const cabe = (l <= W && a <= H) || (permitirGiro && a <= W && l <= H)
       if (!cabe) {
-        setError(`Una pieza (${p.largo}×${p.ancho}cm) excede las dimensiones de la plancha (${W}×${H}cm), incluso rotada`)
+        setError(permitirGiro
+          ? `Una pieza (${p.largo}×${p.ancho}cm) excede las dimensiones de la plancha (${W}×${H}cm), incluso rotada`
+          : `Una pieza (${p.largo}×${p.ancho}cm) no cabe en la plancha (${W}×${H}cm) sin girarla. Activa "Permitir girar piezas" si puede ir de lado`)
         return
       }
     }
@@ -408,7 +300,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
       cantidad: parseInt(p.cantidad),
       nombre: p.nombre
     }))
-    const { planchas, noColocadas } = calcularDistribucion(cortesValidos, W, H)
+    const { planchas, noColocadas } = calcularDistribucion(cortesValidos, W, H, { permitirGiro })
     if (noColocadas.length > 0) {
       setError(`${noColocadas.length} pieza(s) no pudieron ubicarse en ningún tablero. Revisa las medidas.`)
       return
@@ -510,6 +402,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
     const usada = p.cortes.reduce((s, c) => s + c.w * c.h, 0)
     return Math.round((usada / (dimensiones.w * dimensiones.h)) * 100)
   }) ?? []
+  const sobrantes = resultado ? analizarSobrante(resultado, dimensiones.w, dimensiones.h).porTablero : []
   const eficienciaPromedio = eficiencia.length
     ? Math.round(eficiencia.reduce((s, e) => s + e, 0) / eficiencia.length)
     : 0
@@ -839,6 +732,14 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               <p style={{ fontSize: '13px', fontWeight: '500' }}>{planchaSeleccionada?.plancha_nombre} {planchaSeleccionada?.plancha_medida}</p>
             </div>
           </div>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '16px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={permitirGiro} onChange={e => setPermitirGiro(e.target.checked)}
+              style={{ width: '18px', height: '18px', marginTop: '2px', accentColor: 'var(--primary)', flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.4 }}>
+              <strong style={{ color: 'var(--text1)' }}>Permitir girar piezas 90°</strong> — ahorra material y deja un retazo más grande.
+              Desmárcalo si la veta o el dibujo del tablero debe respetar la dirección.
+            </span>
+          </label>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
@@ -971,13 +872,21 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
                     <p style={{ fontSize: '14px', fontWeight: '600' }}>Tablero {pi + 1} de {resultado.length}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text3)' }}>{plancha.cortes.length} piezas</p>
                   </div>
-                  <span style={{
-                    background: eficiencia[pi] >= 70 ? 'var(--green-soft)' : 'var(--amber-soft)',
-                    color: eficiencia[pi] >= 70 ? 'var(--green)' : 'var(--amber)',
-                    fontSize: '12px', fontWeight: '500', padding: '3px 12px', borderRadius: '99px'
-                  }}>
-                    {eficiencia[pi]}% aprovechamiento
-                  </span>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {sobrantes[pi]?.area > 0 && (
+                      <span style={{ background: 'var(--info-soft)', color: 'var(--info)', fontSize: '12px', fontWeight: '500', padding: '3px 12px', borderRadius: '99px' }}
+                        title="Rectángulo libre más grande que queda de este tablero, útil para otras órdenes">
+                        ♻ Retazo reutilizable: {Math.round(sobrantes[pi].w)} × {Math.round(sobrantes[pi].h)} cm
+                      </span>
+                    )}
+                    <span style={{
+                      background: eficiencia[pi] >= 70 ? 'var(--green-soft)' : 'var(--amber-soft)',
+                      color: eficiencia[pi] >= 70 ? 'var(--green)' : 'var(--amber)',
+                      fontSize: '12px', fontWeight: '500', padding: '3px 12px', borderRadius: '99px'
+                    }}>
+                      {eficiencia[pi]}% aprovechamiento
+                    </span>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minWidth: '300px' }}>
