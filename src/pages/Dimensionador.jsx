@@ -596,7 +596,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               <button style={chip(filtroFecha === 'hoy')} onClick={() => setFiltroFecha('hoy')}>Hoy ({proyectosHoy.length})</button>
               <button style={chip(filtroFecha === 'semana')} onClick={() => setFiltroFecha('semana')}>Esta semana</button>
               <button style={chip(filtroFecha === 'mes')} onClick={() => setFiltroFecha('mes')}>Este mes ({proyectosMes.length})</button>
-              {vendedores.length > 1 && (
+              {vendedores.length > 0 && (
                 <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)} style={{ width: 'auto', minWidth: '180px' }}>
                   <option value="">Todos los vendedores</option>
                   {vendedores.map(v => <option key={v} value={v}>{v}</option>)}
