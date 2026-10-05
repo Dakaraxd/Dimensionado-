@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
+import { hoyChile } from '../lib/fechas'
 
 // Dimensiones por defecto del tablero en cm (editables en el paso 2)
 const PLANCHA_W_DEFAULT = 249
@@ -223,6 +224,8 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
   const [error, setError] = useState('')
   const [exportando, setExportando] = useState(false)
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
+  const [filtroFecha, setFiltroFecha] = useState('todos') // 'todos' | 'hoy' | 'semana' | 'mes'
+  const [busquedaProyecto, setBusquedaProyecto] = useState('')
   const diagramaRef = useRef(null)
 
   const esAdmin = profile?.rol === 'administrador'
@@ -514,6 +517,53 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
 
   // ── VISTA PROYECTOS ──
   if (vista === 'proyectos') {
+    const hoy = hoyChile()
+    // Fecha (YYYY-MM-DD) de un proyecto en horario de Chile
+    const fechaDe = (p) => new Date(p.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+    const lunes = new Date(`${hoy}T12:00:00`)
+    lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))
+    const inicioSemana = lunes.toLocaleDateString('en-CA')
+    const enRango = (p, filtro) => {
+      const f = fechaDe(p)
+      if (filtro === 'hoy') return f === hoy
+      if (filtro === 'semana') return f >= inicioSemana
+      if (filtro === 'mes') return f.slice(0, 7) === hoy.slice(0, 7)
+      return true
+    }
+    // m² de piezas pedidas (largo y ancho en cm)
+    const m2De = (p) => (Array.isArray(p.piezas) ? p.piezas : []).reduce(
+      (s, z) => s + (parseFloat(z.cantidad) || 0) * (parseFloat(z.largo) || 0) * (parseFloat(z.ancho) || 0) / 10000, 0)
+
+    const proyectosHoy = proyectos.filter(p => enRango(p, 'hoy'))
+    const proyectosMes = proyectos.filter(p => enRango(p, 'mes'))
+    const tablerosHoy = proyectosHoy.reduce((s, p) => s + extraerResultado(p).planchas.length, 0)
+    const m2Hoy = proyectosHoy.reduce((s, p) => s + m2De(p), 0)
+
+    const q = busquedaProyecto.trim().toLowerCase()
+    const proyectosFiltrados = proyectos.filter(p =>
+      enRango(p, filtroFecha) &&
+      (q === '' ||
+        (p.cliente_nombre ?? '').toLowerCase().includes(q) ||
+        (p.cliente_rut ?? '').toLowerCase().includes(q) ||
+        `${p.plancha_nombre ?? ''} ${p.plancha_medida ?? ''}`.toLowerCase().includes(q))
+    )
+    const hayFiltro = filtroFecha !== 'todos' || q !== ''
+
+    const chip = (activo) => ({
+      padding: '6px 14px', borderRadius: '99px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+      border: `1px solid ${activo ? 'var(--primary)' : 'var(--border)'}`,
+      background: activo ? 'var(--primary)' : 'var(--bg2)',
+      color: activo ? '#fff' : 'var(--text2)'
+    })
+    const tarjeta = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 18px' }
+    const indicador = (icono, titulo, valor, detalle) => (
+      <div key={titulo} style={tarjeta}>
+        <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: '600', marginBottom: '6px' }}>{icono} {titulo}</p>
+        <p style={{ fontSize: '26px', fontWeight: '700', color: 'var(--text1)', lineHeight: 1.1 }}>{valor}</p>
+        <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>{detalle}</p>
+      </div>
+    )
+
     return (
       <div style={{ color: 'var(--text1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
@@ -527,6 +577,39 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
           </button>
         </div>
 
+        {proyectos.length > 0 && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              {indicador('✂️', 'Dimensionados hoy', proyectosHoy.length, proyectosHoy.length === 1 ? 'proyecto' : 'proyectos')}
+              {indicador('📐', 'Tableros usados hoy', tablerosHoy, 'planchas a cortar')}
+              {indicador('📏', 'm² cortados hoy', m2Hoy.toFixed(1), 'según piezas pedidas')}
+              {indicador('📅', 'Dimensionados del mes', proyectosMes.length, `${proyectos.length} en total`)}
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <input type="text" placeholder="🔍 Buscar por cliente, RUT o plancha..."
+                value={busquedaProyecto} onChange={e => setBusquedaProyecto(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
+              <button style={chip(filtroFecha === 'todos')} onClick={() => setFiltroFecha('todos')}>Todos</button>
+              <button style={chip(filtroFecha === 'hoy')} onClick={() => setFiltroFecha('hoy')}>Hoy ({proyectosHoy.length})</button>
+              <button style={chip(filtroFecha === 'semana')} onClick={() => setFiltroFecha('semana')}>Esta semana</button>
+              <button style={chip(filtroFecha === 'mes')} onClick={() => setFiltroFecha('mes')}>Este mes ({proyectosMes.length})</button>
+              {hayFiltro && (
+                <>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
+                    {proyectosFiltrados.length} resultado{proyectosFiltrados.length !== 1 ? 's' : ''}
+                  </span>
+                  <button onClick={() => { setFiltroFecha('todos'); setBusquedaProyecto('') }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: '500' }}>
+                    ✕ Limpiar filtros
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
         {proyectos.length === 0 ? (
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '48px', textAlign: 'center' }}>
             <p style={{ fontSize: '32px', marginBottom: '12px' }}>✂️</p>
@@ -538,7 +621,12 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {proyectos.map(p => (
+            {proyectosFiltrados.length === 0 && (
+              <p style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px', padding: '32px' }}>
+                No hay proyectos que coincidan con los filtros
+              </p>
+            )}
+            {proyectosFiltrados.map(p => (
               <div key={p.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>

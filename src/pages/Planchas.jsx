@@ -3,33 +3,85 @@ import { supabase } from '../lib/supabase'
 import { registrarLog } from '../lib/logger'
 import { CATEGORIAS_CON_SERVICIOS } from '../lib/constants'
 
+const categoriaColor = {
+  'Melamina': { bg: 'rgba(139,92,246,0.12)', color: '#6d28d9', border: 'rgba(139,92,246,0.3)' },
+  'Cholguán': { bg: 'rgba(245,158,11,0.12)', color: '#b45309', border: 'rgba(245,158,11,0.3)' },
+  'Terciado Estructural': { bg: 'rgba(16,185,129,0.12)', color: '#047857', border: 'rgba(16,185,129,0.3)' },
+  'Terciado Moldaje': { bg: 'rgba(20,184,166,0.12)', color: '#0f766e', border: 'rgba(20,184,166,0.3)' },
+  'Terciado Mueblería': { bg: 'rgba(6,182,212,0.12)', color: '#0e7490', border: 'rgba(6,182,212,0.3)' },
+  'MDF Ranurado': { bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8', border: 'rgba(59,130,246,0.3)' },
+  'MDF Blanco': { bg: 'rgba(14,165,233,0.12)', color: '#0369a1', border: 'rgba(14,165,233,0.3)' },
+  'Placa Aglomerado': { bg: 'rgba(249,115,22,0.12)', color: '#c2410c', border: 'rgba(249,115,22,0.3)' },
+  'Tablero OSB': { bg: 'rgba(234,179,8,0.12)', color: '#a16207', border: 'rgba(234,179,8,0.3)' },
+  'Placa Trupán': { bg: 'rgba(132,204,22,0.12)', color: '#4d7c0f', border: 'rgba(132,204,22,0.3)' },
+  'Otros': { bg: 'rgba(107,114,128,0.12)', color: '#4b5563', border: 'rgba(107,114,128,0.3)' },
+  'Servicios': { bg: 'rgba(239,68,68,0.12)', color: '#b91c1c', border: 'rgba(239,68,68,0.3)' },
+}
+
+const chip = (activo) => ({
+  padding: '6px 14px', borderRadius: '99px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+  border: `1px solid ${activo ? 'var(--primary)' : 'var(--border)'}`,
+  background: activo ? 'var(--primary)' : 'var(--bg2)',
+  color: activo ? '#fff' : 'var(--text2)'
+})
+
+function TablaPlanchas({ items, mostrarCategoria, onEditar, onToggleActivo }) {
+  const cols = mostrarCategoria
+    ? ['Nombre', 'Medida', 'Categoría', 'SKU', 'Estado', 'Acciones']
+    : ['Nombre', 'Medida', 'SKU', 'Estado', 'Acciones']
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ background: 'var(--bg3)' }}>
+            {cols.map(h => (
+              <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(p => (
+            <tr key={p.id} style={{ borderTop: '1px solid var(--border)', opacity: p.activo ? 1 : 0.5 }}>
+              <td style={{ padding: '10px 16px', fontWeight: '500', color: 'var(--text1)' }}>{p.nombre}</td>
+              <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{p.medida ?? '-'}</td>
+              {mostrarCategoria && <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{p.categoria ?? '-'}</td>}
+              <td style={{ padding: '10px 16px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '12px' }}>{p.sku ?? '-'}</td>
+              <td style={{ padding: '10px 16px' }}>
+                <span style={{ background: p.activo ? 'var(--green-soft)' : 'var(--bg3)', color: p.activo ? 'var(--green)' : 'var(--text3)', fontSize: '11px', padding: '2px 8px', borderRadius: '99px' }}>
+                  {p.activo ? 'Activo' : 'Inactivo'}
+                </span>
+              </td>
+              <td style={{ padding: '10px 16px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={() => onEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
+                  <button onClick={() => onToggleActivo(p)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}>
+                    {p.activo ? 'Desactivar' : 'Activar'}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function Planchas() {
   const [planchas, setPlanchas] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todas') // 'todas' | 'activas' | 'inactivas'
+  const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [soloSinSku, setSoloSinSku] = useState(false)
   const [categoriasAbiertas, setCategoriasAbiertas] = useState({})
   const [form, setForm] = useState({ nombre: '', medida: '', categoria: '', sku: '' })
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
 
   const categorias = CATEGORIAS_CON_SERVICIOS
-
-  const categoriaColorDark = {
-    'Melamina': { bg: 'rgba(139,92,246,0.12)', color: '#6d28d9', border: 'rgba(139,92,246,0.3)' },
-    'Cholguán': { bg: 'rgba(245,158,11,0.12)', color: '#b45309', border: 'rgba(245,158,11,0.3)' },
-    'Terciado Estructural': { bg: 'rgba(16,185,129,0.12)', color: '#047857', border: 'rgba(16,185,129,0.3)' },
-    'Terciado Moldaje': { bg: 'rgba(20,184,166,0.12)', color: '#0f766e', border: 'rgba(20,184,166,0.3)' },
-    'Terciado Mueblería': { bg: 'rgba(6,182,212,0.12)', color: '#0e7490', border: 'rgba(6,182,212,0.3)' },
-    'MDF Ranurado': { bg: 'rgba(59,130,246,0.12)', color: '#1d4ed8', border: 'rgba(59,130,246,0.3)' },
-    'MDF Blanco': { bg: 'rgba(14,165,233,0.12)', color: '#0369a1', border: 'rgba(14,165,233,0.3)' },
-    'Placa Aglomerado': { bg: 'rgba(249,115,22,0.12)', color: '#c2410c', border: 'rgba(249,115,22,0.3)' },
-    'Tablero OSB': { bg: 'rgba(234,179,8,0.12)', color: '#a16207', border: 'rgba(234,179,8,0.3)' },
-    'Placa Trupán': { bg: 'rgba(132,204,22,0.12)', color: '#4d7c0f', border: 'rgba(132,204,22,0.3)' },
-    'Otros': { bg: 'rgba(107,114,128,0.12)', color: '#4b5563', border: 'rgba(107,114,128,0.3)' },
-    'Servicios': { bg: 'rgba(239,68,68,0.12)', color: '#b91c1c', border: 'rgba(239,68,68,0.3)' },
-  }
 
   useEffect(() => { fetchPlanchas() }, [])
 
@@ -115,13 +167,28 @@ export default function Planchas() {
     fetchPlanchas()
   }
 
-  const hayBusqueda = busqueda.trim().length > 0
-  const q = busqueda.toLowerCase()
+  const q = busqueda.trim().toLowerCase()
+  const hayFiltro = q.length > 0 || filtroEstado !== 'todas' || filtroCategoria !== '' || soloSinSku
   const planchasFiltradas = planchas.filter(p =>
-    p.nombre.toLowerCase().includes(q) ||
-    (p.sku ?? '').toLowerCase().includes(q) ||
-    (p.medida ?? '').toLowerCase().includes(q)
+    (q === '' ||
+      p.nombre.toLowerCase().includes(q) ||
+      (p.sku ?? '').toLowerCase().includes(q) ||
+      (p.medida ?? '').toLowerCase().includes(q)) &&
+    (filtroEstado === 'todas' || (filtroEstado === 'activas' ? p.activo : !p.activo)) &&
+    (filtroCategoria === '' || p.categoria === filtroCategoria) &&
+    (!soloSinSku || !(p.sku ?? '').trim())
   )
+
+  const totalActivas = planchas.filter(p => p.activo).length
+  const totalInactivas = planchas.length - totalActivas
+  const totalSinSku = planchas.filter(p => !(p.sku ?? '').trim()).length
+
+  function limpiarFiltros() {
+    setBusqueda('')
+    setFiltroEstado('todas')
+    setFiltroCategoria('')
+    setSoloSinSku(false)
+  }
 
   const porCategoria = categorias.reduce((acc, cat) => {
     const items = planchas.filter(p => p.categoria === cat)
@@ -134,7 +201,7 @@ export default function Planchas() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: '500' }}>Planchas</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{planchas.length} tipos registrados</p>
+          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{planchas.length} tipos registrados · {totalActivas} activos</p>
         </div>
         <button onClick={abrirFormNuevo}
           style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
@@ -189,56 +256,46 @@ export default function Planchas() {
         </form>
       )}
 
-      {/* Buscador */}
-      <div style={{ marginBottom: '16px' }}>
+      {/* Buscador y filtros rápidos */}
+      <div style={{ marginBottom: '12px' }}>
         <input type="text" placeholder="🔍 Buscar por nombre, SKU o medida..."
           value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+      </div>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
+        <button style={chip(filtroEstado === 'todas')} onClick={() => setFiltroEstado('todas')}>Todas ({planchas.length})</button>
+        <button style={chip(filtroEstado === 'activas')} onClick={() => setFiltroEstado('activas')}>Activas ({totalActivas})</button>
+        <button style={chip(filtroEstado === 'inactivas')} onClick={() => setFiltroEstado('inactivas')}>Inactivas ({totalInactivas})</button>
+        <button style={chip(soloSinSku)} onClick={() => setSoloSinSku(v => !v)}>Sin SKU ({totalSinSku})</button>
+        <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{ width: 'auto', minWidth: '190px' }}>
+          <option value="">Todas las categorías</option>
+          {categorias.filter(c => planchas.some(p => p.categoria === c)).map(c => (
+            <option key={c} value={c}>{c} ({planchas.filter(p => p.categoria === c).length})</option>
+          ))}
+        </select>
+        {hayFiltro && (
+          <button onClick={limpiarFiltros} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: '500' }}>
+            ✕ Limpiar filtros
+          </button>
+        )}
       </div>
 
       {loading ? (
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando planchas...</p>
-      ) : hayBusqueda ? (
+      ) : hayFiltro ? (
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text3)', padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+            {planchasFiltradas.length} resultado{planchasFiltradas.length !== 1 ? 's' : ''}
+          </p>
           {planchasFiltradas.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px', padding: '32px' }}>No se encontraron planchas</p>
+            <p style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px', padding: '32px' }}>No se encontraron planchas con esos filtros</p>
           ) : (
-            <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg3)' }}>
-                  {['Nombre', 'Medida', 'SKU', 'Estado', 'Acciones'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {planchasFiltradas.map(p => (
-                  <tr key={p.id} style={{ borderTop: '1px solid var(--border)', opacity: p.activo ? 1 : 0.4 }}>
-                    <td style={{ padding: '10px 16px', fontWeight: '500', color: 'var(--text1)' }}>{p.nombre}</td>
-                    <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{p.medida ?? '-'}</td>
-                    <td style={{ padding: '10px 16px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '12px' }}>{p.sku ?? '-'}</td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{ background: p.activo ? 'var(--green-soft)' : 'var(--bg3)', color: p.activo ? 'var(--green)' : 'var(--text3)', fontSize: '11px', padding: '2px 8px', borderRadius: '99px' }}>
-                        {p.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <button onClick={() => abrirFormEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
-                        <button onClick={() => handleToggleActivo(p)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}>
-                          {p.activo ? 'Desactivar' : 'Activar'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <TablaPlanchas items={planchasFiltradas} mostrarCategoria onEditar={abrirFormEditar} onToggleActivo={handleToggleActivo} />
           )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {Object.entries(porCategoria).map(([cat, items]) => {
-            const colores = categoriaColorDark[cat] ?? { bg: 'var(--bg3)', color: 'var(--text3)', border: 'var(--border)' }
+            const colores = categoriaColor[cat] ?? { bg: 'var(--bg3)', color: 'var(--text3)', border: 'var(--border)' }
             return (
               <div key={cat} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
                 <button onClick={() => toggleCategoria(cat)}
@@ -254,37 +311,7 @@ export default function Planchas() {
 
                 {categoriasAbiertas[cat] && (
                   <div style={{ borderTop: '1px solid var(--border)' }}>
-                    <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: 'var(--bg3)' }}>
-                          {['Nombre', 'Medida', 'SKU', 'Estado', 'Acciones'].map(h => (
-                            <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map(p => (
-                          <tr key={p.id} style={{ borderTop: '1px solid var(--border)', opacity: p.activo ? 1 : 0.4 }}>
-                            <td style={{ padding: '10px 16px', fontWeight: '500', color: 'var(--text1)' }}>{p.nombre}</td>
-                            <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{p.medida ?? '-'}</td>
-                            <td style={{ padding: '10px 16px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '12px' }}>{p.sku ?? '-'}</td>
-                            <td style={{ padding: '10px 16px' }}>
-                              <span style={{ background: p.activo ? 'var(--green-soft)' : 'var(--bg3)', color: p.activo ? 'var(--green)' : 'var(--text3)', fontSize: '11px', padding: '2px 8px', borderRadius: '99px' }}>
-                                {p.activo ? 'Activo' : 'Inactivo'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '10px 16px' }}>
-                              <div style={{ display: 'flex', gap: '12px' }}>
-                                <button onClick={() => abrirFormEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
-                                <button onClick={() => handleToggleActivo(p)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}>
-                                  {p.activo ? 'Desactivar' : 'Activar'}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <TablaPlanchas items={items} onEditar={abrirFormEditar} onToggleActivo={handleToggleActivo} />
                   </div>
                 )}
               </div>
