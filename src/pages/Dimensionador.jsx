@@ -226,6 +226,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [filtroFecha, setFiltroFecha] = useState('todos') // 'todos' | 'hoy' | 'semana' | 'mes'
   const [busquedaProyecto, setBusquedaProyecto] = useState('')
+  const [filtroVendedor, setFiltroVendedor] = useState('')
   const diagramaRef = useRef(null)
 
   const esAdmin = profile?.rol === 'administrador'
@@ -427,37 +428,36 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
     const pageW = 210
     const margin = 15
 
-    pdf.setFillColor(30, 32, 39)
     pdf.rect(0, 0, pageW, 297, 'F')
     pdf.setFontSize(16); pdf.setFont('helvetica', 'bold')
-    pdf.setTextColor(232, 234, 240)
+    pdf.setTextColor(31, 41, 55)
     pdf.text('Informe de Dimensionado', margin, 22)
     pdf.setFontSize(9); pdf.setFont('helvetica', 'normal')
-    pdf.setTextColor(156, 163, 175)
+    pdf.setTextColor(107, 114, 128)
     pdf.text(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }), margin, 29)
-    pdf.setDrawColor(59, 130, 246); pdf.setLineWidth(0.4)
+    pdf.setDrawColor(242, 107, 29); pdf.setLineWidth(0.4)
     pdf.line(margin, 33, pageW - margin, 33)
 
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(232, 234, 240)
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(31, 41, 55)
     pdf.text('DATOS DEL CLIENTE', margin, 42)
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(200, 200, 210)
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(55, 65, 81)
     pdf.text(`Nombre: ${cliente.nombre}`, margin, 50)
     // RUT parcial en el documento impreso: el PDF circula fuera del sistema
     pdf.text(`RUT: ${maskRut(cliente.rut)}`, margin, 57)
     pdf.text(`Teléfono: ${cliente.telefono}`, margin, 64)
 
-    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(232, 234, 240)
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(31, 41, 55)
     pdf.text('TABLERO ELEGIDO', pageW / 2 + 5, 42)
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(200, 200, 210)
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(55, 65, 81)
     pdf.text(planchaSeleccionada ? `${planchaSeleccionada.plancha_nombre} ${planchaSeleccionada.plancha_medida}` : '—', pageW / 2 + 5, 50)
     pdf.text(`${dimensiones.w} x ${dimensiones.h} cm`, pageW / 2 + 5, 57)
 
     let y = 76
-    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(232, 234, 240)
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(31, 41, 55)
     pdf.text('DIMENSIONES DE PIEZAS', margin, y); y += 8
-    pdf.setFillColor(45, 49, 57)
+    pdf.setFillColor(236, 238, 242)
     pdf.rect(margin, y - 4, pageW - margin * 2, 7, 'F')
-    pdf.setFontSize(8); pdf.setTextColor(156, 163, 175)
+    pdf.setFontSize(8); pdf.setTextColor(107, 114, 128)
     pdf.text('No.', margin + 2, y)
     pdf.text('Cant.', margin + 14, y)
     pdf.text('Nombre pieza', margin + 28, y)
@@ -466,8 +466,8 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
     y += 6
 
     piezasValidas.forEach((p, i) => {
-      if (i % 2 === 0) { pdf.setFillColor(37, 40, 48); pdf.rect(margin, y - 4, pageW - margin * 2, 7, 'F') }
-      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(232, 234, 240)
+      if (i % 2 === 0) { pdf.setFillColor(244, 245, 247); pdf.rect(margin, y - 4, pageW - margin * 2, 7, 'F') }
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(31, 41, 55)
       pdf.text(String(i + 1), margin + 2, y)
       pdf.text(String(p.cantidad), margin + 14, y)
       pdf.text(p.nombre || '—', margin + 28, y)
@@ -480,12 +480,11 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
       const svgs = diagramaRef.current.querySelectorAll('.diagrama-wrap')
       for (let pi = 0; pi < resultado.length; pi++) {
         pdf.addPage()
-        pdf.setFillColor(30, 32, 39); pdf.rect(0, 0, 210, 297, 'F')
-        pdf.setFontSize(13); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(232, 234, 240)
+        pdf.setFontSize(13); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(31, 41, 55)
         pdf.text(`Plancha ${pi + 1} de ${resultado.length}`, margin, 18)
-        pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(156, 163, 175)
+        pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(107, 114, 128)
         pdf.text(`${resultado[pi].cortes.length} piezas · Cliente: ${cliente.nombre}`, margin, 25)
-        pdf.setDrawColor(59, 130, 246); pdf.line(margin, 28, 195, 28)
+        pdf.setDrawColor(242, 107, 29); pdf.line(margin, 28, 195, 28)
 
         if (svgs[pi]) {
           const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })
@@ -540,14 +539,16 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
     const m2Hoy = proyectosHoy.reduce((s, p) => s + m2De(p), 0)
 
     const q = busquedaProyecto.trim().toLowerCase()
+    const vendedores = [...new Set(proyectos.map(p => p.creado_por_nombre).filter(Boolean))].sort((a, b) => a.localeCompare(b))
     const proyectosFiltrados = proyectos.filter(p =>
       enRango(p, filtroFecha) &&
+      (filtroVendedor === '' || p.creado_por_nombre === filtroVendedor) &&
       (q === '' ||
         (p.cliente_nombre ?? '').toLowerCase().includes(q) ||
         (p.cliente_rut ?? '').toLowerCase().includes(q) ||
         `${p.plancha_nombre ?? ''} ${p.plancha_medida ?? ''}`.toLowerCase().includes(q))
     )
-    const hayFiltro = filtroFecha !== 'todos' || q !== ''
+    const hayFiltro = filtroFecha !== 'todos' || filtroVendedor !== '' || q !== ''
 
     const chip = (activo) => ({
       padding: '6px 14px', borderRadius: '99px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
@@ -595,12 +596,18 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
               <button style={chip(filtroFecha === 'hoy')} onClick={() => setFiltroFecha('hoy')}>Hoy ({proyectosHoy.length})</button>
               <button style={chip(filtroFecha === 'semana')} onClick={() => setFiltroFecha('semana')}>Esta semana</button>
               <button style={chip(filtroFecha === 'mes')} onClick={() => setFiltroFecha('mes')}>Este mes ({proyectosMes.length})</button>
+              {vendedores.length > 1 && (
+                <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)} style={{ width: 'auto', minWidth: '180px' }}>
+                  <option value="">Todos los vendedores</option>
+                  {vendedores.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              )}
               {hayFiltro && (
                 <>
                   <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
                     {proyectosFiltrados.length} resultado{proyectosFiltrados.length !== 1 ? 's' : ''}
                   </span>
-                  <button onClick={() => { setFiltroFecha('todos'); setBusquedaProyecto('') }}
+                  <button onClick={() => { setFiltroFecha('todos'); setFiltroVendedor(''); setBusquedaProyecto('') }}
                     style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: '500' }}>
                     ✕ Limpiar filtros
                   </button>
