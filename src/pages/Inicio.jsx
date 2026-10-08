@@ -12,7 +12,7 @@ const ACCESOS = [
 ]
 
 const ACCESOS_ADMIN = [
-  { key: 'planchas', icon: '🪵', label: 'Planchas' },
+  { key: 'planchas', icon: '🟫', label: 'Planchas' },
   { key: 'usuarios', icon: '👥', label: 'Usuarios' },
 ]
 

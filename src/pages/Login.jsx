@@ -60,7 +60,7 @@ export default function Login() {
             background: 'var(--primary)', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
             fontSize: '20px', marginBottom: '16px'
-          }}>🪵</div>
+          }}><span style={{ color: '#fff', fontWeight: 800, fontSize: '20px' }}>D</span></div>
           <h1 style={{ fontSize: '20px', fontWeight: '500', color: 'var(--text1)', marginBottom: '4px' }}>
             Dimensionado
           </h1>

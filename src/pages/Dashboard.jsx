@@ -32,7 +32,7 @@ const GRUPOS = [
     titulo: 'Administración',
     soloAdmin: true,
     items: [
-      { key: 'planchas', icon: '🪵', label: 'Planchas' },
+      { key: 'planchas', icon: '🟫', label: 'Planchas' },
       { key: 'usuarios', icon: '👥', label: 'Usuarios' },
       { key: 'logs', icon: '🔍', label: 'Actividad' },
     ],
@@ -68,7 +68,7 @@ export default function Dashboard() {
           <div style={{
             width: '38px', height: '38px', borderRadius: '10px', background: 'var(--primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0
-          }}>🪵</div>
+          }}><span style={{ color: '#fff', fontWeight: 800, fontSize: '20px' }}>D</span></div>
           <div>
             <h1 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text1)', lineHeight: 1.2 }}>Dimensionado</h1>
             <p style={{ fontSize: '11px', color: 'var(--text3)' }}>Home Center</p>

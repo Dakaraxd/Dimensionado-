@@ -534,7 +534,7 @@ export default function Dimensionador({ prefill, onPrefillConsumido }) {
                     {p.cliente_rut && <span style={{ fontSize: '12px', color: 'var(--text3)' }}>RUT: {p.cliente_rut}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--text3)' }}>🪵 {p.plancha_nombre} {p.plancha_medida}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text3)' }}>🟫 {p.plancha_nombre} {p.plancha_medida}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text3)' }}>📐 {extraerResultado(p).planchas.length} tablero{extraerResultado(p).planchas.length !== 1 ? 's' : ''}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text3)' }}>👤 {p.creado_por_nombre}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text3)' }}>🕐 {new Date(p.creado_en).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}</p>

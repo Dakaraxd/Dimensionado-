@@ -46,7 +46,7 @@ function Scorecard({ icono, titulo, valor, detalle, colorValor = 'var(--text1)',
         <span style={{ fontSize: '18px' }}>{icono}</span>
         <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: '600' }}>{titulo}</p>
       </div>
-      <p style={{ fontSize: '28px', fontWeight: '700', color: colorValor, lineHeight: 1.15, wordBreak: 'break-word' }}>{valor}</p>
+      <p style={{ fontSize: typeof valor === 'number' ? '28px' : '19px', fontWeight: '700', color: colorValor, lineHeight: 1.2, wordBreak: 'break-word' }}>{valor}</p>
       <p style={{ fontSize: '12px', color: colorDetalle, marginTop: '4px' }}>{detalle}</p>
     </div>
   )
@@ -345,7 +345,7 @@ export default function PanelVentas() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Indicadores */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
-            <Scorecard icono="🪵" titulo="Planchas vendidas" valor={stats.totalPlanchas}
+            <Scorecard icono="🟫" titulo="Planchas vendidas" valor={stats.totalPlanchas}
               detalle={detalleVentas} colorValor="var(--primary)" colorDetalle={colorDetalleVentas} />
             <Scorecard icono="🕐" titulo="Órdenes pendientes (ahora)" valor={pendientes}
               detalle={pendientes > 0 ? 'Esperando aprobación de boleta' : 'Todo al día'}
