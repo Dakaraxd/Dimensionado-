@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { leerCuentas, quitarCuenta, olvidarEquipo } from '../lib/cuentas'
+import { ListaCuentas, PinDialogo } from '../components/CuentasRapidas'
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -8,6 +10,9 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cuentas, setCuentas] = useState(leerCuentas)
+  const [usarOtra, setUsarOtra] = useState(false)
+  const [cuentaPin, setCuentaPin] = useState(null)
   const [modoRecuperar, setModoRecuperar] = useState(false)
   const [recuperarEnviado, setRecuperarEnviado] = useState(false)
   const [recuperando, setRecuperando] = useState(false)
@@ -67,7 +72,22 @@ export default function Login() {
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Home Center — Inicia sesión</p>
         </div>
 
-        {modoRecuperar ? (
+        {cuentas.length > 0 && !usarOtra && !modoRecuperar ? (
+          <div>
+            <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '10px' }}>Elige tu cuenta para entrar con tu PIN</p>
+            <ListaCuentas cuentas={cuentas} onElegir={setCuentaPin}
+              onQuitar={c => {
+                if (!confirm('¿Quitar a ' + c.nombre + ' de este equipo? Para volver a usar el PIN tendrá que iniciar sesión con su contraseña.')) return
+                olvidarEquipo(c.secreto)
+                quitarCuenta(c.user_id)
+                setCuentas(leerCuentas())
+              }} />
+            <button type="button" onClick={() => setUsarOtra(true)}
+              style={{ width: '100%', marginTop: '12px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: 500 }}>
+              + Usar otra cuenta
+            </button>
+          </div>
+        ) : modoRecuperar ? (
           recuperarEnviado ? (
             <div>
               <div style={{ background: 'var(--green-soft)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px' }}>
@@ -165,9 +185,16 @@ export default function Login() {
               style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', alignSelf: 'center' }}>
               ¿Olvidaste tu contraseña?
             </button>
+            {cuentas.length > 0 && (
+              <button type="button" onClick={() => { setUsarOtra(false); setError('') }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', alignSelf: 'center' }}>
+                ← Volver a las cuentas de este equipo
+              </button>
+            )}
           </form>
         )}
       </div>
+      {cuentaPin && <PinDialogo cuenta={cuentaPin} onCerrar={() => { setCuentaPin(null); setCuentas(leerCuentas()) }} />}
     </div>
   )
 }

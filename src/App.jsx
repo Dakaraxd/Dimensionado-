@@ -44,7 +44,7 @@ export default function App() {
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
       <Route path="/" element={
         <ProtectedRoute>
-          <Dashboard />
+          <Dashboard key={user?.id} />
         </ProtectedRoute>
       } />
     </Routes>

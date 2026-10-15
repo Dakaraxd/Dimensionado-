@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { cuentaDe } from '../lib/cuentas'
+import CambiarUsuario from '../components/CambiarUsuario'
+import { ConfigurarPin } from '../components/CuentasRapidas'
 import Inicio from './Inicio'
 import Usuarios from './Usuarios'
 import Stock from './Stock'
@@ -42,9 +45,16 @@ const GRUPOS = [
 ]
 
 export default function Dashboard() {
-  const { profile, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const [pagina, setPagina] = useState('inicio')
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [selectorAbierto, setSelectorAbierto] = useState(false)
+  const [pinAbierto, setPinAbierto] = useState(false)
+  const [, refrescar] = useState(0)
+  const [invitacionOculta, setInvitacionOculta] = useState(() => sessionStorage.getItem('dimensionado.pin.omitido') === '1')
+
+  const usuario = { id: user?.id, nombre: profile?.nombre ?? user?.email, email: profile?.email ?? user?.email }
+  const tienePin = !!user && !!cuentaDe(user.id)
 
   const esAdmin = profile?.rol === 'administrador'
   const puedeOperar = esAdmin || profile?.rol === 'vendedor'
@@ -93,6 +103,17 @@ export default function Dashboard() {
           <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'capitalize', marginBottom: '8px' }}>
             {profile?.rol?.replace('_', ' ')}
           </p>
+          <button onClick={() => setSelectorAbierto(true)}
+            style={{
+              width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text1)',
+              borderRadius: '8px', padding: '7px', fontSize: '13px', fontWeight: '500', marginBottom: '6px'
+            }}>
+            ⇄ Cambiar de usuario
+          </button>
+          <button onClick={() => setPinAbierto(true)}
+            style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text3)', padding: '4px', fontSize: '12px', marginBottom: '4px' }}>
+            🔐 {tienePin ? 'Cambiar mi PIN' : 'Crear mi PIN'}
+          </button>
           <button onClick={signOut}
             style={{
               width: '100%', background: 'transparent', border: '1px solid var(--border)', color: 'var(--red)',
@@ -115,6 +136,17 @@ export default function Dashboard() {
         </div>
 
         <main className="main-content">
+          {!tienePin && !invitacionOculta && user && (
+            <div style={{ background: 'var(--primary-soft)', border: '1px solid rgba(242,107,29,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <p style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'var(--text1)' }}>
+                🔐 <strong>Acceso rápido:</strong> crea un PIN para cambiar de usuario en este equipo sin escribir tu contraseña.
+              </p>
+              <button onClick={() => setPinAbierto(true)}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600 }}>Crear PIN</button>
+              <button onClick={() => { sessionStorage.setItem('dimensionado.pin.omitido', '1'); setInvitacionOculta(true) }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px' }}>Ahora no</button>
+            </div>
+          )}
           {pagina === 'inicio' && <Inicio onNavegar={navegar} />}
           {pagina === 'venta' && puedeOperar && <NuevaVenta onNavegar={navegar} />}
           {pagina === 'stock' && <Stock />}
@@ -127,6 +159,14 @@ export default function Dashboard() {
           {pagina === 'logs' && esAdmin && <Logs />}
         </main>
       </div>
+
+      {selectorAbierto && (
+        <CambiarUsuario usuario={usuario}
+          onCerrar={() => setSelectorAbierto(false)}
+          onAgregarOtra={() => { setSelectorAbierto(false); signOut() }}
+          onConfigurarPin={() => { setSelectorAbierto(false); setPinAbierto(true) }} />
+      )}
+      {pinAbierto && <ConfigurarPin usuario={usuario} onCerrar={() => setPinAbierto(false)} onListo={() => refrescar(n => n + 1)} />}
     </div>
   )
 }

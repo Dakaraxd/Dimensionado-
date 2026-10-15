@@ -200,3 +200,25 @@ button { cursor: pointer; font-family: inherit; }
 
 .quick-tile.destacado { background: var(--primary); border-color: var(--primary); color: #fff; }
 .quick-tile.destacado:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+
+/* ───────── Ventanas modales (cambio rápido de usuario) ───────── */
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-caja {
+  width: 100%;
+  max-width: 400px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--bg2);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}

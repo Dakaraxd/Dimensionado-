@@ -8,6 +8,7 @@ const accionConfig = {
   APROBAR:    { bg: 'rgba(16,185,129,0.12)',  color: 'var(--green)',  border: 'rgba(16,185,129,0.3)',  icono: '✅', texto: 'aprobó' },
   CANCELAR:   { bg: 'rgba(239,68,68,0.12)',   color: 'var(--red)',    border: 'rgba(239,68,68,0.3)',   icono: '❌', texto: 'canceló' },
   ACTIVAR:    { bg: 'rgba(16,185,129,0.12)',  color: 'var(--green)',  border: 'rgba(16,185,129,0.3)',  icono: '🟢', texto: 'activó' },
+  ACCESO:     { bg: 'rgba(37,99,235,0.1)',    color: 'var(--info)',   border: 'rgba(37,99,235,0.3)',   icono: '🔑', texto: 'ingresó con' },
   DESACTIVAR: { bg: 'rgba(107,114,128,0.12)', color: 'var(--text3)',  border: 'rgba(107,114,128,0.3)', icono: '⭕', texto: 'desactivó' },
 }
 
@@ -17,6 +18,7 @@ const entidadTexto = {
   plancha:  'una plancha',
   usuario:  'un usuario',
   proyecto: 'un proyecto de dimensionado',
+  sesion:   'acceso rápido con PIN',
 }
 
 function descripcionLegible(accion, entidad, detalle) {
@@ -43,6 +45,8 @@ function descripcionLegible(accion, entidad, detalle) {
   if (entidad === 'usuario') {
     if (accion === 'CREAR') return `${detalle.nombre} (${detalle.email}) con rol ${detalle.rol}`
   }
+
+  if (entidad === 'sesion') return 'Cambio rápido de usuario en un equipo vinculado'
 
   if (entidad === 'proyecto') {
     if (accion === 'CREAR') return `Cliente ${detalle.cliente} — ${detalle.plancha ?? ''}`
@@ -72,8 +76,8 @@ export default function Logs() {
     setLoading(false)
   }
 
-  const acciones = ['Todas', 'CREAR', 'EDITAR', 'ELIMINAR', 'APROBAR', 'CANCELAR', 'ACTIVAR', 'DESACTIVAR']
-  const entidades = ['Todas', 'orden', 'stock', 'plancha', 'usuario', 'proyecto']
+  const acciones = ['Todas', 'CREAR', 'EDITAR', 'ELIMINAR', 'APROBAR', 'CANCELAR', 'ACTIVAR', 'DESACTIVAR', 'ACCESO']
+  const entidades = ['Todas', 'orden', 'stock', 'plancha', 'usuario', 'proyecto', 'sesion']
 
   const logsFiltrados = useMemo(() => {
     const q = busqueda.toLowerCase()

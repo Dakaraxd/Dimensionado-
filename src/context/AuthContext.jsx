@@ -48,7 +48,8 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    // scope local: cerrar sesión en este equipo no debe cerrar la sesión de la persona en sus otros dispositivos
+    await supabase.auth.signOut({ scope: 'local' })
   }
 
   async function actualizarPassword(nuevaPassword) {

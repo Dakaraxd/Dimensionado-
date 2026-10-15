@@ -58,6 +58,21 @@ Habilita el flujo unificado "Nueva venta" (cliente → plancha → cortes → d�
 
 Solo agrega columnas nulas: no toca datos existentes, ni políticas RLS, ni triggers. Cómo ejecutarla: Dashboard → SQL Editor → pegar el contenido completo → Run.
 
+## ⚠️ Cambio rápido de usuario con PIN — GENERADO 2026-10-14, falta aplicar
+
+Permite cambiar de usuario en un equipo compartido (como el selector de cuentas de Google) confirmando con un PIN personal de 4 a 6 dígitos.
+
+**Cómo se protege:** cada equipo vinculado tiene un secreto aleatorio guardado en el navegador; para entrar se exigen el secreto del equipo **y** el PIN. Quien no tenga el equipo no puede adivinar PINs desde internet. Tras 5 fallos seguidos el equipo se bloquea 15 minutos y tras 10 se desactiva (hay que volver a vincularlo con la contraseña). En la base solo se guardan hashes (PBKDF2 con sal para el PIN, SHA-256 para el secreto).
+
+Pasos, en este orden (desde la carpeta dimensionado-app):
+
+1. SQL Editor → ejecutar `supabase/migracion_pin.sql` (crea `dispositivos_pin`, sin acceso desde la API pública).
+2. `supabase functions deploy pin-dispositivo`
+3. `supabase functions deploy cambiar-usuario --no-verify-jwt` (se llama sin sesión; la seguridad la dan el secreto + el PIN).
+4. Publicar la app.
+
+Pruebas de las funciones: `cd supabase/functions && deno test`.
+
 ## Pendientes manuales (no se pueden hacer por SQL)
 
 - [ ] **Leaked password protection** (warning del linter): Dashboard → Authentication → Sign In / Up → Password → activar "Prevent use of leaked passwords".
