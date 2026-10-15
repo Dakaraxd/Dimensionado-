@@ -12,7 +12,7 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string): Pr
 
     if (accion === 'registrar') {
       if (!pinValido(pin)) {
-        return json({ error: 'El PIN debe tener de 4 a 6 dígitos y no ser evidente (por ejemplo 1234 o 0000).' }, 400)
+        return json({ error: 'El PIN debe tener 4 dígitos y no ser evidente (por ejemplo 1234 o 0000).' }, 400)
       }
       const sal = generarSal()
       const pin_hash = await hashPin(pin, sal)

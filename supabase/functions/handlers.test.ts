@@ -75,7 +75,7 @@ Deno.test('Vincular equipo: devuelve un secreto y guarda solo hashes (nunca el P
 
 Deno.test('PIN débil o inválido se rechaza al vincular', async () => {
   const { admin, tablas } = crearAdmin()
-  for (const pin of ['1234', '0000', '12', 'abcd', '1234567']) {
+  for (const pin of ['1234', '0000', '12', 'abcd', '48271', '482716']) {
     const r = await leer(await pinDispositivo(post({ accion: 'registrar', pin }), admin, U1))
     assertEquals(r.status, 400, pin)
   }

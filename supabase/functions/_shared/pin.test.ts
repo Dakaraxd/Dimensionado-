@@ -7,9 +7,9 @@ import {
 const ahora = new Date('2026-10-14T12:00:00Z')
 const nuevo = () => ({ intentos: 0, bloqueado_hasta: null as string | null, activo: true })
 
-Deno.test('PIN válido: 4 a 6 dígitos y no evidente', () => {
-  for (const ok of ['4827', '9031', '135790', '482716']) assert(pinValido(ok), ok)
-  for (const mal of ['123', '1234567', 'abcd', '12a4', '', '0000', '1111', '1234', '4321', '123456', '654321', 1234, null, undefined]) {
+Deno.test('PIN válido: exactamente 4 dígitos y no evidente', () => {
+  for (const ok of ['4827', '9031', '1357', '7351']) assert(pinValido(ok), ok)
+  for (const mal of ['123', '48271', '482716', '135790', '1234567', 'abcd', '12a4', '', '0000', '1111', '1234', '4321', '2345', 1234, null, undefined]) {
     assert(!pinValido(mal as unknown), String(mal))
   }
 })

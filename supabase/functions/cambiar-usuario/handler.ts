@@ -18,7 +18,7 @@ export async function manejar(req: Request, admin: Admin, ahora = new Date()): P
     const { user_id, secreto, pin } = await req.json()
     if (typeof user_id !== 'string' || !UUID.test(user_id) ||
         typeof secreto !== 'string' || secreto.length < 30 || secreto.length > 100 ||
-        typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) {
+        typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
       return json({ error: 'No se pudo verificar.' }, 400)
     }
 

@@ -66,7 +66,7 @@ export function PinDialogo({ cuenta, onCerrar, onExito }) {
 
   async function confirmar(e) {
     e.preventDefault()
-    if (!/^\d{4,6}$/.test(pin)) { setError('Ingresa tu PIN de 4 a 6 dígitos'); return }
+    if (!/^\d{4}$/.test(pin)) { setError('Ingresa tu PIN de 4 dígitos'); return }
     setCargando(true)
     setError('')
     const res = await accederConPin(cuenta, pin)
@@ -83,7 +83,7 @@ export function PinDialogo({ cuenta, onCerrar, onExito }) {
         <p style={{ fontSize: '16px', fontWeight: 600 }}>{cuenta.nombre}</p>
         <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '18px' }}>{cuenta.email}</p>
         <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '8px' }}>Ingresa tu PIN para continuar</label>
-        <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={6} value={pin}
+        <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={4} value={pin}
           onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={inputPin} />
         {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '18px' }}>
@@ -106,7 +106,7 @@ export function ConfigurarPin({ usuario, onCerrar, onListo }) {
 
   async function guardar(e) {
     e.preventDefault()
-    if (!/^\d{4,6}$/.test(pin)) { setError('El PIN debe tener de 4 a 6 dígitos'); return }
+    if (!/^\d{4}$/.test(pin)) { setError('El PIN debe tener 4 dígitos'); return }
     if (pin !== repetir) { setError('Los PIN no coinciden'); return }
     setCargando(true)
     setError('')
@@ -126,11 +126,11 @@ export function ConfigurarPin({ usuario, onCerrar, onListo }) {
           Con tu PIN podrás volver a entrar a tu cuenta en <strong>este equipo</strong> sin escribir tu contraseña.
           Es personal: no lo compartas. No elijas uno evidente como 1234 o 0000.
         </p>
-        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>PIN (4 a 6 dígitos)</label>
-        <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={6} value={pin}
+        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>PIN (4 dígitos)</label>
+        <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={4} value={pin}
           onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={inputPin} />
         <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', margin: '12px 0 6px' }}>Repite el PIN</label>
-        <input type="password" inputMode="numeric" autoComplete="off" maxLength={6} value={repetir}
+        <input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={repetir}
           onChange={e => setRepetir(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={inputPin} />
         {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '18px' }}>

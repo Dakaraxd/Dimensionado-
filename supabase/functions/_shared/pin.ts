@@ -47,9 +47,9 @@ export function igualesConstante(a: string, b: string): boolean {
   return diff === 0
 }
 
-// PIN de 4 a 6 dígitos que no sea evidente (0000, 1234, 4321...)
+// PIN de exactamente 4 dígitos que no sea evidente (0000, 1234, 4321...)
 export function pinValido(pin: unknown): pin is string {
-  if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) return false
+  if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return false
   if (/^(\d)\1+$/.test(pin)) return false
   const d = [...pin].map(Number)
   const sube = d.every((v, i) => i === 0 || v === d[i - 1] + 1)

@@ -60,7 +60,7 @@ Solo agrega columnas nulas: no toca datos existentes, ni políticas RLS, ni trig
 
 ## ⚠️ Cambio rápido de usuario con PIN — GENERADO 2026-10-14, falta aplicar
 
-Permite cambiar de usuario en un equipo compartido (como el selector de cuentas de Google) confirmando con un PIN personal de 4 a 6 dígitos.
+Permite cambiar de usuario en un equipo compartido (como el selector de cuentas de Google) confirmando con un PIN personal de 4 dígitos.
 
 **Cómo se protege:** cada equipo vinculado tiene un secreto aleatorio guardado en el navegador; para entrar se exigen el secreto del equipo **y** el PIN. Quien no tenga el equipo no puede adivinar PINs desde internet. Tras 5 fallos seguidos el equipo se bloquea 15 minutos y tras 10 se desactiva (hay que volver a vincularlo con la contraseña). En la base solo se guardan hashes (PBKDF2 con sal para el PIN, SHA-256 para el secreto).
 
