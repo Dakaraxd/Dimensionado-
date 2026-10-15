@@ -197,3 +197,6 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 12px;
   font-weight: 700;
 }
+
+.quick-tile.destacado { background: var(--primary); border-color: var(--primary); color: #fff; }
+.quick-tile.destacado:hover { background: var(--primary-dark); border-color: var(--primary-dark); }

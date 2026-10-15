@@ -9,6 +9,7 @@ import Historial from './Historial'
 import Tablero from './Tablero'
 import Logs from './Logs'
 import Dimensionador from './Dimensionador'
+import NuevaVenta from './NuevaVenta'
 
 // Los módulos se agrupan siguiendo el flujo de venta: stock → orden → dimensionado.
 const GRUPOS = [
@@ -16,6 +17,7 @@ const GRUPOS = [
   {
     titulo: 'Venta',
     items: [
+      { key: 'venta', icon: '🛒', label: 'Nueva venta', soloOperar: true },
       { key: 'stock', icon: '📦', label: 'Stock' },
       { key: 'ordenes', icon: '🕐', label: 'Órdenes' },
       { key: 'dimensionador', icon: '✂️', label: 'Dimensionador' },
@@ -43,20 +45,17 @@ export default function Dashboard() {
   const { profile, signOut } = useAuth()
   const [pagina, setPagina] = useState('inicio')
   const [menuAbierto, setMenuAbierto] = useState(false)
-  const [prefillDimensionador, setPrefillDimensionador] = useState(null)
 
   const esAdmin = profile?.rol === 'administrador'
-  const grupos = GRUPOS.filter(g => !g.soloAdmin || esAdmin)
+  const puedeOperar = esAdmin || profile?.rol === 'vendedor'
+  const grupos = GRUPOS
+    .filter(g => !g.soloAdmin || esAdmin)
+    .map(g => ({ ...g, items: g.items.filter(i => !i.soloOperar || puedeOperar) }))
   const itemActual = grupos.flatMap(g => g.items).find(i => i.key === pagina)
 
   function navegar(key) {
     setPagina(key)
     setMenuAbierto(false)
-  }
-
-  function irADimensionador(datos) {
-    setPrefillDimensionador(datos)
-    navegar('dimensionador')
   }
 
   return (
@@ -117,11 +116,10 @@ export default function Dashboard() {
 
         <main className="main-content">
           {pagina === 'inicio' && <Inicio onNavegar={navegar} />}
+          {pagina === 'venta' && puedeOperar && <NuevaVenta onNavegar={navegar} />}
           {pagina === 'stock' && <Stock />}
-          {pagina === 'ordenes' && <Ordenes onCortar={irADimensionador} />}
-          {pagina === 'dimensionador' && (
-            <Dimensionador prefill={prefillDimensionador} onPrefillConsumido={() => setPrefillDimensionador(null)} />
-          )}
+          {pagina === 'ordenes' && <Ordenes onNuevaVenta={() => navegar('venta')} />}
+          {pagina === 'dimensionador' && <Dimensionador onNuevaVenta={() => navegar('venta')} />}
           {pagina === 'tablero' && <Tablero />}
           {pagina === 'historial' && <Historial />}
           {pagina === 'planchas' && esAdmin && <Planchas />}

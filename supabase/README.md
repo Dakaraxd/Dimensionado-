@@ -49,6 +49,15 @@ un usuario huérfano (sin perfil, con el email "quemado" en Auth). Ahora
 insert del profile. Falta desplegar el cambio: `supabase functions deploy
 crear-usuario` (o subirlo desde el dashboard).
 
+## ⚠️ `migracion_flujo_venta.sql` — GENERADA 2026-10-14, ejecutar ANTES de publicar la fase 4
+
+Habilita el flujo unificado "Nueva venta" (cliente → plancha → cortes → día → boleta):
+
+- `ordenes` gana `cliente_nombre` y `cliente_rut` (hasta ahora solo existía el teléfono; las ventas sin cortes no guardaban quién compró).
+- `proyectos_dimensionado` gana `orden_id`, que vincula cada proyecto de corte con la venta que lo originó.
+
+Solo agrega columnas nulas: no toca datos existentes, ni políticas RLS, ni triggers. Cómo ejecutarla: Dashboard → SQL Editor → pegar el contenido completo → Run.
+
 ## Pendientes manuales (no se pueden hacer por SQL)
 
 - [ ] **Leaked password protection** (warning del linter): Dashboard → Authentication → Sign In / Up → Password → activar "Prevent use of leaked passwords".

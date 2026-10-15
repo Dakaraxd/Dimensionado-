@@ -231,6 +231,11 @@ export default function Historial() {
               <p style={{ fontSize: '12px', color: 'var(--text3)' }}>
                 {new Date(porBoleta[boletaSeleccionada]?.[0]?.aprobado_en).toLocaleString('es-CL')}
               </p>
+              {porBoleta[boletaSeleccionada]?.[0]?.cliente_nombre && (
+                <p style={{ fontSize: '13px', color: 'var(--text2)', marginTop: '4px' }}>
+                  Cliente: <span style={{ fontWeight: '500', color: 'var(--text1)' }}>{porBoleta[boletaSeleccionada][0].cliente_nombre}</span>
+                </p>
+              )}
               <p style={{ fontSize: '13px', color: 'var(--text2)', marginTop: '4px' }}>
                 Vendedor: <span style={{ fontWeight: '500', color: 'var(--text1)' }}>{porBoleta[boletaSeleccionada]?.[0]?.vendedor?.nombre}</span>
               </p>

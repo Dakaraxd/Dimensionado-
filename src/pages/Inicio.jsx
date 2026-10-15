@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import PanelVentas from './PanelVentas'
 
 const ACCESOS = [
+  { key: 'venta', icon: '🛒', label: 'Nueva venta', destacado: true, soloOperar: true },
   { key: 'stock', icon: '📦', label: 'Stock' },
   { key: 'ordenes', icon: '🕐', label: 'Órdenes', conBadge: true },
   { key: 'dimensionador', icon: '✂️', label: 'Dimensionador' },
@@ -20,7 +21,8 @@ export default function Inicio({ onNavegar }) {
   const { profile } = useAuth()
   const [pendientes, setPendientes] = useState(0)
   const esAdmin = profile?.rol === 'administrador'
-  const accesos = esAdmin ? [...ACCESOS, ...ACCESOS_ADMIN] : ACCESOS
+  const puedeOperar = esAdmin || profile?.rol === 'vendedor'
+  const accesos = (esAdmin ? [...ACCESOS, ...ACCESOS_ADMIN] : ACCESOS).filter(a => !a.soloOperar || puedeOperar)
   const primerNombre = profile?.nombre?.split(' ')[0]
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function Inicio({ onNavegar }) {
 
       <div className="quick-grid" style={{ marginBottom: esAdmin ? '30px' : 0 }}>
         {accesos.map(a => (
-          <button key={a.key} className="quick-tile" onClick={() => onNavegar(a.key)}>
+          <button key={a.key} className={`quick-tile${a.destacado ? ' destacado' : ''}`} onClick={() => onNavegar(a.key)}>
             {a.conBadge && pendientes > 0 && <span className="quick-badge">{pendientes}</span>}
             <span className="quick-icon">{a.icon}</span>
             {a.label}

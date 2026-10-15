@@ -8,6 +8,10 @@
 // Espesor del corte de sierra (kerf) en cm: cada corte consume material
 export const KERF = 0.4
 
+// Dimensiones por defecto de un tablero en cm (editables al dimensionar)
+export const PLANCHA_W_DEFAULT = 249
+export const PLANCHA_H_DEFAULT = 182
+
 const EPS = 1e-9
 const r6 = v => Math.round(v * 1e6) / 1e6
 const aspecto = (w, h) => (Math.max(w, h) > 0 ? Math.min(w, h) / Math.max(w, h) : 0)
