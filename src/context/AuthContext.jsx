@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext({})
@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [recuperandoPassword, setRecuperandoPassword] = useState(false)
+  const perfilId = useRef(null) // usuario cuyo perfil ya está cargado
 
   async function fetchProfile(userId) {
     const { data, error } = await supabase
@@ -16,6 +17,7 @@ export function AuthProvider({ children }) {
       .eq('id', userId)
       .single()
     if (error) console.error('No se pudo cargar el perfil:', error.message)
+    perfilId.current = data ? userId : null
     setProfile(data)
     setLoading(false)
   }
@@ -32,8 +34,13 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') setRecuperandoPassword(true)
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else {
+      if (session?.user) {
+        // Si es otra persona (o el primer ingreso), se muestra "Cargando..." hasta tener su perfil:
+        // así no aparece un error de perfil por un instante al iniciar sesión
+        if (perfilId.current !== session.user.id) setLoading(true)
+        fetchProfile(session.user.id)
+      } else {
+        perfilId.current = null
         setProfile(null)
         setLoading(false)
       }
