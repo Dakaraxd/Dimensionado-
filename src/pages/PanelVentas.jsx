@@ -52,11 +52,11 @@ function Scorecard({ icono, titulo, valor, detalle, colorValor = 'var(--text1)',
   )
 }
 
-export default function PanelVentas() {
+export default function PanelVentas({ despuesDeTarjetas = null }) {
   const [offsetMeses, setOffsetMeses] = useState(0)
   const [ordenes, setOrdenes] = useState([])
   const [totalMesAnterior, setTotalMesAnterior] = useState(0)
-  const [dimensionadosMes, setDimensionadosMes] = useState(0)
+  const [dimensionadas, setDimensionadas] = useState({ planchas: 0, proyectos: 0 })
   const [pendientes, setPendientes] = useState(0)
   const [stock, setStock] = useState({ total: 0, tiposBajos: 0 })
   const [loading, setLoading] = useState(true)
@@ -82,7 +82,7 @@ export default function PanelVentas() {
         .eq('estado', 'aprobada').gte('aprobado_en', ini).lt('aprobado_en', fin)
         .order('aprobado_en', { ascending: true }),
       supabase.from('ordenes').select('cantidad').eq('estado', 'aprobada').gte('aprobado_en', iniAnt).lt('aprobado_en', finAnt),
-      supabase.from('proyectos_dimensionado').select('id', { count: 'exact', head: true }).gte('creado_en', ini).lt('creado_en', fin),
+      supabase.from('proyectos_dimensionado').select('resultado').gte('creado_en', ini).lt('creado_en', fin),
       supabase.from('ordenes').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
       supabase.from('vista_stock_general').select('disponible, plancha_categoria').not('plancha_categoria', 'in', '("Servicios","Otros")'),
     ])
@@ -94,7 +94,12 @@ export default function PanelVentas() {
       setOrdenes(ventas.data ?? [])
     }
     setTotalMesAnterior((anterior.data ?? []).reduce((s, o) => s + o.cantidad, 0))
-    setDimensionadosMes(proyectos.count ?? 0)
+    // Planchas dimensionadas = tableros que se cortaron en los proyectos del mes
+    const filasProyectos = proyectos.data ?? []
+    setDimensionadas({
+      proyectos: filasProyectos.length,
+      planchas: filasProyectos.reduce((suma, p) => suma + (Array.isArray(p.resultado) ? p.resultado.length : (p.resultado?.planchas?.length ?? 0)), 0)
+    })
     setPendientes(pend.count ?? 0)
     const filasStock = stockRes.data ?? []
     setStock({
@@ -220,7 +225,7 @@ export default function PanelVentas() {
       const resumenFilas = [
         ['Planchas vendidas', String(stats.totalPlanchas)],
         ['Mes anterior', variacion === null ? 'Sin ventas para comparar' : `${totalMesAnterior} planchas (${variacion >= 0 ? '+' : ''}${variacion}%)`],
-        ['Proyectos dimensionados', String(dimensionadosMes)],
+        ['Planchas dimensionadas', dimensionadas.planchas + ' en ' + dimensionadas.proyectos + ' proyecto' + (dimensionadas.proyectos === 1 ? '' : 's')],
         ['Lo más vendido', top ? `${top.nombre} (${top.cantidad})` : '—']
       ]
       autoTable(pdf, {
@@ -347,16 +352,19 @@ export default function PanelVentas() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
             <Scorecard icono="🟫" titulo="Planchas vendidas" valor={stats.totalPlanchas}
               detalle={detalleVentas} colorValor="var(--primary)" colorDetalle={colorDetalleVentas} />
-            <Scorecard icono="🕐" titulo="Órdenes pendientes (ahora)" valor={pendientes}
+            <Scorecard icono="🕐" titulo="Salidas pendientes de boleta (ahora)" valor={pendientes}
               detalle={pendientes > 0 ? 'Esperando aprobación de boleta' : 'Todo al día'}
               colorValor={pendientes > 0 ? 'var(--amber)' : 'var(--green)'} />
             <Scorecard icono="📦" titulo="Stock disponible (ahora)" valor={stock.total}
               detalle={stock.tiposBajos > 0 ? `${stock.tiposBajos} tipo${stock.tiposBajos !== 1 ? 's' : ''} con stock bajo (≤${UMBRAL_STOCK_BAJO})` : 'Sin alertas de stock bajo'}
               colorDetalle={stock.tiposBajos > 0 ? 'var(--red)' : 'var(--text3)'} />
-            <Scorecard icono="✂️" titulo="Proyectos dimensionados" valor={dimensionadosMes} detalle="Creados en el mes" />
+            <Scorecard icono="✂️" titulo="Planchas dimensionadas" valor={dimensionadas.planchas}
+              detalle={dimensionadas.proyectos + ' proyecto' + (dimensionadas.proyectos === 1 ? '' : 's') + ' de corte en el mes'} />
             <Scorecard icono="🏆" titulo="Lo más vendido" valor={top ? top.nombre : '—'}
               detalle={top ? `${top.cantidad} planchas en el mes` : 'Sin ventas en el mes'} colorValor="var(--text1)" />
           </div>
+
+          {despuesDeTarjetas}
 
           {sinVentas ? (
             <div style={cardStyle}>

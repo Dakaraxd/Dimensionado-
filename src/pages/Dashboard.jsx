@@ -8,29 +8,27 @@ import Usuarios from './Usuarios'
 import Stock from './Stock'
 import Planchas from './Planchas'
 import Ordenes from './Ordenes'
-import Historial from './Historial'
+import Reportes from './Reportes'
 import Tablero from './Tablero'
 import Logs from './Logs'
-import Dimensionador from './Dimensionador'
 import NuevaVenta from './NuevaVenta'
 
-// Los módulos se agrupan siguiendo el flujo de venta: stock → orden → dimensionado.
+// Los módulos se agrupan siguiendo el flujo de trabajo: stock → orden → salida → seguimiento.
 const GRUPOS = [
   { titulo: null, items: [{ key: 'inicio', icon: '🏠', label: 'Inicio' }] },
   {
     titulo: 'Venta',
     items: [
-      { key: 'venta', icon: '🛒', label: 'Nueva venta', soloOperar: true },
       { key: 'stock', icon: '📦', label: 'Stock' },
-      { key: 'ordenes', icon: '🕐', label: 'Órdenes' },
-      { key: 'dimensionador', icon: '✂️', label: 'Dimensionador' },
+      { key: 'venta', icon: '🛒', label: 'Nueva orden', soloOperar: true },
+      { key: 'ordenes', icon: '🕐', label: 'Registro de salida' },
     ],
   },
   {
     titulo: 'Seguimiento',
     items: [
-      { key: 'tablero', icon: '📅', label: 'Tablero' },
-      { key: 'historial', icon: '📋', label: 'Historial' },
+      { key: 'tablero', icon: '📅', label: 'Planificador' },
+      { key: 'reportes', icon: '📊', label: 'Reportes' },
     ],
   },
   {
@@ -49,6 +47,7 @@ export default function Dashboard() {
   const [pagina, setPagina] = useState('inicio')
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectorAbierto, setSelectorAbierto] = useState(false)
+  const [subReportes, setSubReportes] = useState('ventas')
   const [pinAbierto, setPinAbierto] = useState(false)
   const [, refrescar] = useState(0)
   const [invitacionOculta, setInvitacionOculta] = useState(() => sessionStorage.getItem('dimensionado.pin.omitido') === '1')
@@ -63,7 +62,8 @@ export default function Dashboard() {
     .map(g => ({ ...g, items: g.items.filter(i => !i.soloOperar || puedeOperar) }))
   const itemActual = grupos.flatMap(g => g.items).find(i => i.key === pagina)
 
-  function navegar(key) {
+  function navegar(key, sub) {
+    if (key === 'reportes') setSubReportes(sub ?? 'ventas')
     setPagina(key)
     setMenuAbierto(false)
   }
@@ -151,9 +151,8 @@ export default function Dashboard() {
           {pagina === 'venta' && puedeOperar && <NuevaVenta onNavegar={navegar} />}
           {pagina === 'stock' && <Stock />}
           {pagina === 'ordenes' && <Ordenes onNuevaVenta={() => navegar('venta')} />}
-          {pagina === 'dimensionador' && <Dimensionador onNuevaVenta={() => navegar('venta')} />}
           {pagina === 'tablero' && <Tablero />}
-          {pagina === 'historial' && <Historial />}
+          {pagina === 'reportes' && <Reportes key={subReportes} tabInicial={subReportes} onNuevaOrden={() => navegar('venta')} />}
           {pagina === 'planchas' && esAdmin && <Planchas />}
           {pagina === 'usuarios' && esAdmin && <Usuarios />}
           {pagina === 'logs' && esAdmin && <Logs />}

@@ -6,7 +6,7 @@ import { hoyChile, aYMD } from '../lib/fechas'
 import { formatRut, validarRut } from '../lib/rut'
 import EditorCortes from '../components/EditorCortes'
 
-const ETIQUETAS = { cliente: 'Cliente', plancha: 'Plancha', cortes: 'Cortes', dia: 'Día', boleta: 'Boleta' }
+const ETIQUETAS = { cliente: 'Cliente', plancha: 'Plancha', cortes: 'Cortes', dia: 'Día de corte', boleta: 'Boleta' }
 
 const card = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px' }
 const label = { display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }
@@ -18,7 +18,7 @@ function mensajeDe(err) {
   const m = err?.message ?? ''
   return /Stock insuficiente|Sin cupo|no tiene dimensionadores|No existe stock/i.test(m)
     ? m
-    : 'No se pudo completar la venta. Intenta de nuevo.'
+    : 'No se pudo completar la orden. Intenta de nuevo.'
 }
 
 export default function NuevaVenta({ onNavegar }) {
@@ -44,6 +44,7 @@ export default function NuevaVenta({ onNavegar }) {
   const [clientesPrevios, setClientesPrevios] = useState([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [dias, setDias] = useState([])
+  const [plan, setPlan] = useState({ listo: false, hoy: null, dias: [] })
   const [cargandoDias, setCargandoDias] = useState(false)
 
   const tableros = cortes?.planchas.length ?? 0
@@ -77,6 +78,19 @@ export default function NuevaVenta({ onNavegar }) {
     }
     cargar()
   }, [])
+
+  // ── Verificación del taller: ¿hay dimensionadores asignados? ──
+  useEffect(() => {
+    async function cargarPlan() {
+      const hasta = new Date()
+      hasta.setDate(hasta.getDate() + 30)
+      const { data } = await supabase.from('vista_dias_mes').select('*')
+        .gte('fecha', hoy).lte('fecha', aYMD(hasta)).order('fecha')
+      const planificados = (data ?? []).filter(d => d.cuota)
+      setPlan({ listo: true, hoy: planificados.find(d => d.fecha === hoy) ?? null, dias: planificados })
+    }
+    cargarPlan()
+  }, [hoy])
 
   // ── Días con cupo (solo cuando hay cortes) ──
   useEffect(() => {
@@ -224,7 +238,7 @@ export default function NuevaVenta({ onNavegar }) {
       if (e) throw e
     } catch (err) {
       await supabase.from('ordenes').update({ estado: 'cancelada' }).eq('id', orden.id)
-      setError(`${mensajeDe(err)} No se descontó stock ni se registró la venta.`)
+      setError(`${mensajeDe(err)} No se descontó stock ni se registró la orden.`)
       setGuardando(false)
       return
     }
@@ -254,25 +268,61 @@ export default function NuevaVenta({ onNavegar }) {
   const diaElegido = dias.find(d => d.fecha === fecha)
   const formatoDia = (f) => f === hoy ? 'Hoy' : new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
 
+  const encabezado = (titulo, ayuda) => (
+    <div style={{ marginBottom: '18px' }}>
+      <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '4px' }}>Paso {indice + 1}</p>
+      <h3 style={{ fontSize: '17px', fontWeight: 600, marginBottom: '4px' }}>{titulo}</h3>
+      <p style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.5 }}>{ayuda}</p>
+    </div>
+  )
+
+  const proximoConCupo = plan.dias.find(d => d.cupo_disponible > 0)
+  const sinTaller = plan.listo && plan.dias.length === 0
+  const sufijo = (n) => (n === 1 ? '' : 's')
+  const textoProximo = proximoConCupo ? <> (el próximo con cupo es <strong>{formatoDia(proximoConCupo.fecha)}</strong>)</> : null
+  const avisoTaller = () => {
+    if (!plan.listo) return null
+    let tono = 'ok'
+    let texto
+    if (plan.hoy && plan.hoy.cupo_disponible > 0) {
+      texto = <>✅ <strong>Hoy hay {plan.hoy.dimensionadores} dimensionador{sufijo(plan.hoy.dimensionadores) ? 'es' : ''} asignado{sufijo(plan.hoy.dimensionadores)}</strong> · cupo disponible: {plan.hoy.cupo_disponible} plancha{plan.hoy.cupo_disponible === 1 ? '' : 's'}.</>
+    } else if (plan.hoy) {
+      tono = 'aviso'
+      texto = <>⚠️ <strong>Hoy ya no queda cupo de corte.</strong> Si el cliente necesita cortes, se agendarán para otro día{textoProximo}. Las órdenes sin cortes no se ven afectadas.</>
+    } else if (plan.dias.length > 0) {
+      tono = 'aviso'
+      texto = <>⚠️ <strong>No hay dimensionadores asignados para hoy.</strong> Si el cliente necesita cortes, se agendarán para otro día{textoProximo}. Las órdenes sin cortes no se ven afectadas.</>
+    } else {
+      tono = 'error'
+      texto = <>⛔ <strong>No hay dimensionadores asignados en los próximos 30 días.</strong> Por ahora solo se pueden registrar órdenes <strong>sin cortes</strong>. El administrador debe asignarlos en el <strong>📅 Planificador</strong>.</>
+    }
+    const colores = { ok: ['var(--green-soft)', 'rgba(21,128,61,0.3)', 'var(--green)'], aviso: ['var(--amber-soft)', 'rgba(180,83,9,0.3)', 'var(--amber)'], error: ['var(--red-soft)', 'rgba(220,38,38,0.3)', 'var(--red)'] }[tono]
+    return (
+      <div style={{ background: colores[0], border: '1px solid ' + colores[1], borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' }}>
+        <p style={{ fontSize: '13px', color: colores[2], lineHeight: 1.5 }}>{texto}</p>
+      </div>
+    )
+  }
+
   // ── VENTA TERMINADA ──
   if (paso === 'listo' && venta) {
     return (
       <div style={{ color: 'var(--text1)', maxWidth: '620px', margin: '0 auto' }}>
         <div style={{ ...card, textAlign: 'center' }}>
           <div style={{ fontSize: '44px', marginBottom: '8px' }}>✅</div>
-          <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '6px' }}>Venta aprobada</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '6px' }}>Orden aprobada</h2>
           <p style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '18px' }}>Boleta <strong>#{venta.boleta}</strong> · {venta.cliente}</p>
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', textAlign: 'left', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
             <p>🟫 {venta.cantidad} × {venta.plancha}</p>
-            <p>✂️ {venta.cortes ? 'Con cortes: el proyecto quedó guardado y asociado a esta venta' : 'Sin cortes'}</p>
+            <p>✂️ {venta.cortes ? 'Con cortes: el proyecto quedó guardado y asociado a esta orden' : 'Sin cortes'}</p>
             {venta.fecha && <p>📅 Taller: {formatoDia(venta.fecha)}</p>}
           </div>
           {venta.fecha && venta.fecha !== hoy && (
             <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px' }}>📞 Recuerda avisarle al cliente el día de entrega.</p>
           )}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={reiniciar} style={btnPrimario}>+ Nueva venta</button>
-            {venta.cortes && <button onClick={() => onNavegar?.('dimensionador')} style={btnSecundario}>Ver proyectos de corte</button>}
+            <button onClick={reiniciar} style={btnPrimario}>+ Nueva orden</button>
+            {venta.cortes && <button onClick={() => onNavegar?.('reportes', 'dimensionado')} style={btnSecundario}>Ver historial de dimensionado</button>}
             <button onClick={() => onNavegar?.('inicio')} style={btnSecundario}>Ir al inicio</button>
           </div>
         </div>
@@ -283,8 +333,8 @@ export default function NuevaVenta({ onNavegar }) {
   return (
     <div style={{ color: 'var(--text1)', maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '600' }}>Nueva venta</h2>
-        <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Cliente, plancha, cortes y boleta en un solo flujo</p>
+        <h2 style={{ fontSize: '20px', fontWeight: '600' }}>Nueva orden</h2>
+        <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Registra la orden completa: cliente, plancha, cortes, día de taller y boleta</p>
       </div>
 
       {/* Stepper */}
@@ -312,9 +362,10 @@ export default function NuevaVenta({ onNavegar }) {
       </div>
 
       {/* 1 · CLIENTE */}
+      {paso === 'cliente' && avisoTaller()}
       {paso === 'cliente' && (
         <div style={card}>
-          <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '20px' }}>Datos del cliente</h3>
+          {encabezado('¿Quién compra?', 'Ingresa el RUT y el nombre del cliente. Si ya compró antes, escribe su RUT o nombre y toca la sugerencia para autocompletar sus datos.')}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
             <div style={{ position: 'relative' }}>
               <label style={label}>RUT *</label>
@@ -350,7 +401,7 @@ export default function NuevaVenta({ onNavegar }) {
             <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>💡 Cliente ya atendido antes — toca una sugerencia para autocompletar sus datos.</p>
           )}
           <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '14px', lineHeight: 1.5 }}>
-            🔒 Los datos del cliente se usan únicamente para identificar y elaborar esta venta.
+            🔒 Los datos del cliente se usan únicamente para identificar y elaborar esta orden.
             El cliente puede solicitar su acceso, rectificación o eliminación (Ley 19.628 / Ley 21.719).
           </p>
           {error && <p style={{ fontSize: '12px', color: 'var(--red)', marginTop: '10px' }}>{error}</p>}
@@ -363,7 +414,7 @@ export default function NuevaVenta({ onNavegar }) {
       {/* 2 · PLANCHA */}
       {paso === 'plancha' && (
         <div style={card}>
-          <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '14px' }}>¿Qué plancha lleva?</h3>
+          {encabezado('¿Qué plancha lleva?', 'Elige el tipo de plancha. Solo aparecen las que tienen stock disponible.')}
           <input type="text" placeholder="🔍 Buscar por nombre, medida o SKU..."
             value={busquedaPlancha} onChange={e => setBusquedaPlancha(e.target.value)} style={{ marginBottom: '12px' }} />
           <div style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', maxHeight: '340px', overflowY: 'auto' }}>
@@ -398,7 +449,19 @@ export default function NuevaVenta({ onNavegar }) {
       {paso === 'cortes' && (
         <>
           {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '10px 14px', borderRadius: '8px', marginBottom: '12px' }}>{error}</p>}
-          <EditorCortes
+          <div style={{ ...card, marginBottom: '14px', padding: '18px 24px' }}>
+            {encabezado('¿El cliente necesita cortes?', <>Ingresa las piezas y optimiza para ver cómo se cortan. Si el cliente <strong>se lleva las planchas enteras</strong>, elige <strong>“No hacer corte”</strong>.</>)}
+            {sinTaller && (
+              <>
+                <p style={{ fontSize: '13px', color: 'var(--red)', marginBottom: '12px' }}>⛔ No hay dimensionadores asignados en los próximos 30 días, así que por ahora no se pueden agendar cortes.</p>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button onClick={() => ir('plancha')} style={btnSecundario}>← Volver</button>
+                  <button onClick={sinCortes} style={btnPrimario}>Continuar sin cortes</button>
+                </div>
+              </>
+            )}
+          </div>
+          {!sinTaller && <EditorCortes
             key={plancha.tipo_plancha_id}
             cliente={cliente}
             plancha={plancha}
@@ -407,22 +470,19 @@ export default function NuevaVenta({ onNavegar }) {
             onSinCortes={sinCortes}
             onVolver={() => ir('plancha')}
             textoConfirmar="Continuar →"
-          />
+          />}
         </>
       )}
 
       {/* 4 · DÍA (solo con cortes) */}
       {paso === 'dia' && cortes && (
         <div style={card}>
-          <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>¿Qué día se cortan?</h3>
-          <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '16px' }}>
-            Los cortes usan <strong>{tableros} tablero{tableros !== 1 ? 's' : ''}</strong> de la capacidad del taller. Elige un día con cupo.
-          </p>
+          {encabezado('¿Qué día se cortan?', <>Los cortes usan <strong>{tableros} tablero{tableros !== 1 ? 's' : ''}</strong> de la capacidad del taller. Elige un día con cupo disponible.</>)}
           {cargandoDias ? (
             <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Calculando días...</p>
           ) : dias.length === 0 ? (
             <div style={{ background: 'var(--amber-soft)', border: '1px solid rgba(180,83,9,0.3)', borderRadius: '10px', padding: '12px 16px' }}>
-              <p style={{ fontSize: '13px', color: 'var(--amber)' }}>⚠️ No hay días planificados. El administrador debe asignar dimensionadores en el <strong>📅 Tablero</strong>.</p>
+              <p style={{ fontSize: '13px', color: 'var(--amber)' }}>⚠️ No hay días planificados. El administrador debe asignar dimensionadores en el <strong>📅 Planificador</strong>.</p>
             </div>
           ) : (
             <>
@@ -446,7 +506,7 @@ export default function NuevaVenta({ onNavegar }) {
                 })}
               </div>
               {!dias.some(d => d.cupo_disponible >= tableros) && (
-                <p style={{ fontSize: '13px', color: 'var(--red)', marginTop: '12px' }}>⚠️ Ningún día tiene cupo para {tableros} tableros. El administrador debe planificar más días en el Tablero.</p>
+                <p style={{ fontSize: '13px', color: 'var(--red)', marginTop: '12px' }}>⚠️ Ningún día tiene cupo para {tableros} tableros. El administrador debe planificar más días en el Planificador.</p>
               )}
               {diaElegido && <p style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '12px' }}>📅 Se agendará para: <strong>{formatoDia(diaElegido.fecha)}</strong></p>}
             </>
@@ -463,7 +523,7 @@ export default function NuevaVenta({ onNavegar }) {
       {/* 5 · BOLETA */}
       {paso === 'boleta' && (
         <div style={card}>
-          <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '16px' }}>Resumen y boleta</h3>
+          {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock.')}
 
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
             <p>👤 <strong>{cliente.nombre}</strong> · {cliente.rut}{cliente.telefono ? ` · ${cliente.telefono}` : ''}</p>
@@ -498,6 +558,13 @@ export default function NuevaVenta({ onNavegar }) {
             </div>
           </div>
 
+          <div style={{ border: '1px dashed var(--border)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '12px', color: 'var(--text2)', lineHeight: 1.7 }}>
+            <p style={{ fontWeight: 600, color: 'var(--text1)', marginBottom: '2px' }}>Al aprobar la orden, el sistema:</p>
+            <p>✓ Registra la orden a nombre de {cliente.nombre}</p>
+            <p>✓ Descuenta {cortes ? tableros : (parseInt(cantidad) || 0)} plancha{(cortes ? tableros : (parseInt(cantidad) || 0)) === 1 ? '' : 's'} del stock</p>
+            {cortes && <p>✓ Guarda el proyecto de cortes ({tableros} tablero{tableros !== 1 ? 's' : ''}){diaElegido ? ' y lo agenda para ' + (diaElegido.fecha === hoy ? 'hoy' : 'el ' + formatoDia(diaElegido.fecha)) : ''}</p>}
+          </div>
+
           {servicios.length > 0 && (
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '8px' }}>
               <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '10px', fontWeight: '500' }}>Servicios adicionales (opcional)</p>
@@ -520,7 +587,7 @@ export default function NuevaVenta({ onNavegar }) {
             <button onClick={() => ir(cortes ? 'dia' : 'cortes')} style={btnSecundario} disabled={guardando}>← Volver</button>
             <button onClick={aprobarVenta} disabled={guardando}
               style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 26px', fontSize: '14px', fontWeight: '600', opacity: guardando ? 0.7 : 1 }}>
-              {guardando ? 'Guardando...' : '✓ Aprobar venta'}
+              {guardando ? 'Guardando...' : '✓ Aprobar orden'}
             </button>
           </div>
         </div>

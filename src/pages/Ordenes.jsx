@@ -5,7 +5,7 @@ import { registrarLog } from '../lib/logger'
 import { hoyChile } from '../lib/fechas'
 
 // Bandeja de órdenes pendientes de boleta. Las ventas nuevas se registran y aprueban de una
-// vez en "Nueva venta"; aquí quedan las que no alcanzaron a aprobarse.
+// vez en "Nueva orden"; aquí quedan las que no alcanzaron a aprobarse.
 export default function Ordenes({ onNuevaVenta }) {
   const { profile } = useAuth()
   const [ordenes, setOrdenes] = useState([])
@@ -123,13 +123,13 @@ export default function Ordenes({ onNuevaVenta }) {
     <div style={{ color: 'var(--text1)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Órdenes pendientes</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{ordenes.length} orden{ordenes.length !== 1 ? 'es' : ''} en espera de boleta</p>
+          <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Registro de salida</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{ordenes.length} orden{ordenes.length !== 1 ? 'es' : ''} pendiente{ordenes.length !== 1 ? 's' : ''} de boleta</p>
         </div>
         {puedeOperar && onNuevaVenta && (
           <button onClick={onNuevaVenta}
             style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
-            + Nueva venta
+            + Nueva orden
           </button>
         )}
       </div>
@@ -157,7 +157,7 @@ export default function Ordenes({ onNuevaVenta }) {
         </div>
       ) : (
         <div style={{ background: 'var(--amber-soft)', border: '1px solid rgba(180,83,9,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '20px' }}>
-          <p style={{ fontSize: '13px', color: 'var(--amber)' }}>⚠️ No hay dimensionadores planificados para hoy. El admin debe configurarlos en el <strong>📅 Tablero</strong>.</p>
+          <p style={{ fontSize: '13px', color: 'var(--amber)' }}>⚠️ No hay dimensionadores planificados para hoy. El admin debe configurarlos en el <strong>📅 Planificador</strong>.</p>
         </div>
       )}
 
@@ -165,8 +165,8 @@ export default function Ordenes({ onNuevaVenta }) {
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando órdenes...</p>
       ) : ordenes.length === 0 ? (
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '40px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text3)' }}>No hay órdenes pendientes.</p>
-          <p style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '6px' }}>Las ventas nuevas se aprueban directo desde “Nueva venta”.</p>
+          <p style={{ color: 'var(--text3)' }}>No hay salidas pendientes de boleta.</p>
+          <p style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '6px' }}>Las órdenes nuevas se aprueban directo desde “Nueva orden”.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

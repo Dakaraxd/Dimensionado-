@@ -6,7 +6,7 @@ import { hoyChile } from '../lib/fechas'
 import { PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import EditorCortes from '../components/EditorCortes'
 
-// Los proyectos de corte se crean desde "Nueva venta". Aquí se consultan, filtran y
+// Los proyectos de corte se crean desde "Nueva orden". Aquí se consultan, filtran y
 // reimprimen; un proyecto abre en modo solo lectura.
 export default function Dimensionador({ onNuevaVenta }) {
   const { profile } = useAuth()
@@ -125,15 +125,15 @@ export default function Dimensionador({ onNuevaVenta }) {
     <div style={{ color: 'var(--text1)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Proyectos de corte</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Historial de dimensionado</h2>
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>
-            {proyectos.length} proyectos guardados · se crean desde <strong>Nueva venta</strong>
+            {proyectos.length} proyectos guardados · se crean desde <strong>Nueva orden</strong>
           </p>
         </div>
         {puedeVender && onNuevaVenta && (
           <button onClick={onNuevaVenta}
             style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '500' }}>
-            + Nueva venta
+            + Nueva orden
           </button>
         )}
       </div>
@@ -180,12 +180,12 @@ export default function Dimensionador({ onNuevaVenta }) {
       {proyectos.length === 0 ? (
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '48px', textAlign: 'center' }}>
           <p style={{ fontSize: '32px', marginBottom: '12px' }}>✂️</p>
-          <p style={{ color: 'var(--text3)', fontSize: '14px' }}>No hay proyectos de corte guardados aún.</p>
-          <p style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '6px' }}>Se crean al registrar una venta con cortes.</p>
+          <p style={{ color: 'var(--text3)', fontSize: '14px' }}>No hay dimensionados registrados aún.</p>
+          <p style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '6px' }}>Se crean al registrar una orden con cortes.</p>
           {puedeVender && onNuevaVenta && (
             <button onClick={onNuevaVenta}
               style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '500', marginTop: '16px' }}>
-              Ir a Nueva venta
+              Ir a Nueva orden
             </button>
           )}
         </div>

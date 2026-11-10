@@ -134,7 +134,7 @@ export default function Tablero() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px', textTransform: 'capitalize' }}>
-            Tablero — {nombreMes}
+            Planificador — {nombreMes}
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Planificación de dimensionadores y órdenes agendadas</p>
         </div>
@@ -190,7 +190,7 @@ export default function Tablero() {
 
       {/* Grilla */}
       {loading ? (
-        <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando tablero...</p>
+        <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando planificador...</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
           {Array.from({ length: (new Date(mes.year, mes.month, 1).getDay() + 6) % 7 }).map((_, i) => (

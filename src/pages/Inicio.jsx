@@ -4,12 +4,11 @@ import { useAuth } from '../context/AuthContext'
 import PanelVentas from './PanelVentas'
 
 const ACCESOS = [
-  { key: 'venta', icon: '🛒', label: 'Nueva venta', destacado: true, soloOperar: true },
+  { key: 'venta', icon: '🛒', label: 'Nueva orden', destacado: true, soloOperar: true },
   { key: 'stock', icon: '📦', label: 'Stock' },
-  { key: 'ordenes', icon: '🕐', label: 'Órdenes', conBadge: true },
-  { key: 'dimensionador', icon: '✂️', label: 'Dimensionador' },
-  { key: 'tablero', icon: '📅', label: 'Tablero' },
-  { key: 'historial', icon: '📋', label: 'Historial' },
+  { key: 'ordenes', icon: '🕐', label: 'Registro de salida', conBadge: true },
+  { key: 'tablero', icon: '📅', label: 'Planificador' },
+  { key: 'reportes', icon: '📊', label: 'Reportes' },
 ]
 
 const ACCESOS_ADMIN = [
@@ -33,6 +32,21 @@ export default function Inicio({ onNavegar }) {
       .then(({ count }) => setPendientes(count ?? 0))
   }, [])
 
+  const accesosRapidos = (
+    <div>
+      <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text2)', marginBottom: '10px' }}>Accesos rápidos</p>
+        <div className="quick-grid" >
+          {accesos.map(a => (
+            <button key={a.key} className={`quick-tile${a.destacado ? ' destacado' : ''}`} onClick={() => onNavegar(a.key)}>
+              {a.conBadge && pendientes > 0 && <span className="quick-badge">{pendientes}</span>}
+              <span className="quick-icon">{a.icon}</span>
+              {a.label}
+            </button>
+          ))}
+        </div>
+    </div>
+  )
+
   return (
     <div style={{ color: 'var(--text1)' }}>
       <div style={{ marginBottom: '18px' }}>
@@ -40,17 +54,9 @@ export default function Inicio({ onNavegar }) {
         <p style={{ fontSize: '13px', color: 'var(--text3)' }}>¿Qué quieres hacer?</p>
       </div>
 
-      <div className="quick-grid" style={{ marginBottom: esAdmin ? '30px' : 0 }}>
-        {accesos.map(a => (
-          <button key={a.key} className={`quick-tile${a.destacado ? ' destacado' : ''}`} onClick={() => onNavegar(a.key)}>
-            {a.conBadge && pendientes > 0 && <span className="quick-badge">{pendientes}</span>}
-            <span className="quick-icon">{a.icon}</span>
-            {a.label}
-          </button>
-        ))}
-      </div>
-
-      {esAdmin && <PanelVentas />}
+      {esAdmin ? (
+        <PanelVentas despuesDeTarjetas={accesosRapidos} />
+      ) : accesosRapidos}
     </div>
   )
 }
