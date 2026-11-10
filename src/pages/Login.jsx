@@ -77,7 +77,7 @@ export default function Login() {
             <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '10px' }}>Elige tu cuenta para entrar con tu PIN</p>
             <ListaCuentas cuentas={cuentas} onElegir={setCuentaPin}
               onQuitar={c => {
-                if (!confirm('¿Quitar a ' + c.nombre + ' de este equipo? Para volver a usar el PIN tendrá que iniciar sesión con su contraseña.')) return
+                if (!confirm('¿Quitar a ' + c.nombre + ' de este equipo? Su PIN no se borra: para volver a usar el acceso rápido aquí tendrá que iniciar sesión con su contraseña y activarlo.')) return
                 olvidarEquipo(c.secreto)
                 quitarCuenta(c.user_id)
                 setCuentas(leerCuentas())

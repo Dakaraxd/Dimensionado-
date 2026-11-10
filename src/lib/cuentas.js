@@ -49,6 +49,19 @@ export async function vincularEquipo({ pin, secreto }) {
   return { secreto: data.secreto }
 }
 
+// ¿La persona ya tiene un PIN creado (en cualquier equipo)? Si sí, este equipo solo hay que activarlo.
+export async function consultarPin() {
+  const { data, error } = await supabase.functions.invoke('pin-dispositivo', { body: { accion: 'estado' } })
+  return error ? { tiene: null } : { tiene: !!data?.tiene_pin }
+}
+
+// Activa este equipo reutilizando el PIN que la persona ya tiene (sin crear otro)
+export async function activarEquipo({ secreto }) {
+  const { data, error } = await supabase.functions.invoke('pin-dispositivo', { body: { accion: 'activar', secreto } })
+  if (error) return leerError(error, 'No se pudo activar el acceso rápido. Intenta de nuevo.')
+  return { secreto: data.secreto }
+}
+
 export async function olvidarEquipo(secreto) {
   const { error } = await supabase.functions.invoke('pin-dispositivo', {
     body: { accion: 'olvidar', secreto }

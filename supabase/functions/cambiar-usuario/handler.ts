@@ -24,7 +24,7 @@ export async function manejar(req: Request, admin: Admin, ahora = new Date()): P
 
     const { data: disp } = await admin
       .from('dispositivos_pin')
-      .select('id, pin_salt, pin_hash, intentos, bloqueado_hasta, activo')
+      .select('id, intentos, bloqueado_hasta, activo')
       .eq('secreto_hash', await sha256Hex(secreto))
       .eq('user_id', user_id)
       .maybeSingle()
@@ -33,7 +33,13 @@ export async function manejar(req: Request, admin: Admin, ahora = new Date()): P
       return json({ error: 'No se pudo verificar. Inicia sesión con tu contraseña.', codigo: 'desconocido' }, 401)
     }
 
-    const pinCorrecto = igualesConstante(await hashPin(pin, disp.pin_salt), disp.pin_hash)
+    // El PIN es de la persona; solo se consulta una vez que el equipo ya fue reconocido
+    const { data: pinUsuario } = await admin.from('pin_usuario').select('pin_salt, pin_hash').eq('user_id', user_id).maybeSingle()
+    if (!pinUsuario) {
+      return json({ error: 'No se pudo verificar. Inicia sesión con tu contraseña.', codigo: 'desconocido' }, 401)
+    }
+
+    const pinCorrecto = igualesConstante(await hashPin(pin, pinUsuario.pin_salt), pinUsuario.pin_hash)
     const decision = evaluarIntento(disp, ahora, pinCorrecto)
     if (decision.cambios) await admin.from('dispositivos_pin').update(decision.cambios).eq('id', disp.id)
 
