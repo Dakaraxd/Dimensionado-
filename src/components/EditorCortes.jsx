@@ -150,6 +150,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       // RUT parcial en el documento impreso: el PDF circula fuera del sistema
       pdf.text(`RUT: ${maskRut(cliente.rut)}`, margin, 57)
       pdf.text(`Teléfono: ${cliente.telefono}`, margin, 64)
+      if (cliente.email) pdf.text(`Correo: ${cliente.email}`, margin, 71)
 
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(31, 41, 55)
       pdf.text('TABLERO ELEGIDO', pageW / 2 + 5, 42)
@@ -376,6 +377,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           <p style={{ fontSize: '13px', fontWeight: '500' }}>{cliente.nombre}</p>
           <p style={{ fontSize: '12px', color: 'var(--text3)' }}>RUT: {cliente.rut}</p>
           {cliente.telefono && <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Tel: {cliente.telefono}</p>}
+          {cliente.email && <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Correo: {cliente.email}</p>}
         </div>
         <div>
           <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '6px' }}>Tablero Elegido</p>

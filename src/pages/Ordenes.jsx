@@ -207,6 +207,7 @@ export default function Ordenes({ onNuevaVenta }) {
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                           {o.cliente_nombre && <p style={{ fontSize: '12px', color: 'var(--text3)' }}>👤 <span style={{ color: 'var(--text2)' }}>{o.cliente_nombre}</span></p>}
                           {o.telefono_cliente && <p style={{ fontSize: '12px', color: 'var(--text3)' }}>📞 <span style={{ color: 'var(--text2)' }}>{o.telefono_cliente}</span></p>}
+                          {o.cliente_email && <p style={{ fontSize: '12px', color: 'var(--text3)' }}>✉️ <span style={{ color: 'var(--text2)' }}>{o.cliente_email}</span></p>}
                           {o.nota && <p style={{ fontSize: '12px', color: 'var(--text3)' }}>📝 <span style={{ color: 'var(--text2)' }}>{o.nota}</span></p>}
                           <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Vendedor: <span style={{ color: 'var(--text2)' }}>{o.vendedor?.nombre}</span></p>
                         </div>

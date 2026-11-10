@@ -10,7 +10,7 @@ import Planchas from './Planchas'
 import Ordenes from './Ordenes'
 import Reportes from './Reportes'
 import Tablero from './Tablero'
-import Logs from './Logs'
+import Actividad from './Actividad'
 import NuevaVenta from './NuevaVenta'
 
 // Los módulos se agrupan siguiendo el flujo de trabajo: stock → orden → salida → seguimiento.
@@ -155,7 +155,7 @@ export default function Dashboard() {
           {pagina === 'reportes' && <Reportes key={subReportes} tabInicial={subReportes} onNuevaOrden={() => navegar('venta')} />}
           {pagina === 'planchas' && esAdmin && <Planchas />}
           {pagina === 'usuarios' && esAdmin && <Usuarios />}
-          {pagina === 'logs' && esAdmin && <Logs />}
+          {pagina === 'logs' && esAdmin && <Actividad />}
         </main>
       </div>
 

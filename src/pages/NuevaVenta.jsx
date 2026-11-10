@@ -26,7 +26,7 @@ export default function NuevaVenta({ onNavegar }) {
   const hoy = hoyChile()
 
   const [paso, setPaso] = useState('cliente') // cliente | plancha | cortes | dia | boleta | listo
-  const [cliente, setCliente] = useState({ rut: '', nombre: '', telefono: '' })
+  const [cliente, setCliente] = useState({ rut: '', nombre: '', telefono: '', email: '' })
   const [plancha, setPlancha] = useState(null)
   const [cortes, setCortes] = useState(null) // { piezas, dims, planchas } cuando se hacen cortes
   const [cantidad, setCantidad] = useState('1') // solo para ventas sin cortes
@@ -59,9 +59,9 @@ export default function NuevaVenta({ onNavegar }) {
           .not('plancha_categoria', 'in', '("Servicios","Otros")')
           .order('plancha_categoria').order('plancha_nombre'),
         supabase.from('tipos_plancha').select('*').eq('activo', true).eq('categoria', 'Servicios').order('nombre'),
-        supabase.from('ordenes').select('cliente_nombre, cliente_rut, telefono_cliente')
+        supabase.from('ordenes').select('cliente_nombre, cliente_rut, telefono_cliente, cliente_email')
           .not('cliente_rut', 'is', null).order('creado_en', { ascending: false }).limit(300),
-        supabase.from('proyectos_dimensionado').select('cliente_nombre, cliente_rut, cliente_telefono')
+        supabase.from('proyectos_dimensionado').select('cliente_nombre, cliente_rut, cliente_telefono, cliente_email')
           .order('creado_en', { ascending: false }).limit(300),
       ])
       setPlanchasStock(stock.data ?? [])
@@ -69,10 +69,10 @@ export default function NuevaVenta({ onNavegar }) {
       // Clientes ya atendidos, sin repetir RUT (lo más reciente primero)
       const vistos = new Map()
       for (const o of ords.data ?? []) {
-        if (o.cliente_rut && !vistos.has(o.cliente_rut)) vistos.set(o.cliente_rut, { nombre: o.cliente_nombre, rut: o.cliente_rut, telefono: o.telefono_cliente ?? '' })
+        if (o.cliente_rut && !vistos.has(o.cliente_rut)) vistos.set(o.cliente_rut, { nombre: o.cliente_nombre, rut: o.cliente_rut, telefono: o.telefono_cliente ?? '', email: o.cliente_email ?? '' })
       }
       for (const p of proys.data ?? []) {
-        if (p.cliente_rut && !vistos.has(p.cliente_rut)) vistos.set(p.cliente_rut, { nombre: p.cliente_nombre, rut: p.cliente_rut, telefono: p.cliente_telefono ?? '' })
+        if (p.cliente_rut && !vistos.has(p.cliente_rut)) vistos.set(p.cliente_rut, { nombre: p.cliente_nombre, rut: p.cliente_rut, telefono: p.cliente_telefono ?? '', email: p.cliente_email ?? '' })
       }
       setClientesPrevios([...vistos.values()])
     }
@@ -129,12 +129,13 @@ export default function NuevaVenta({ onNavegar }) {
   function ir(destino) { setError(''); setPaso(destino) }
 
   function elegirCliente(c) {
-    setCliente({ nombre: c.nombre ?? '', rut: c.rut ?? '', telefono: c.telefono ?? '' })
+    setCliente({ nombre: c.nombre ?? '', rut: c.rut ?? '', telefono: c.telefono ?? '', email: c.email ?? '' })
     setMostrarSugerencias(false)
   }
 
   function siguienteCliente() {
     if (!cliente.nombre.trim() || !cliente.rut) { setError('Nombre y RUT son obligatorios'); return }
+    if (cliente.email.trim() && !/^[^s@]+@[^s@]+.[^s@]{2,}$/.test(cliente.email.trim())) { setError('El correo del cliente no es válido (ej: nombre@correo.cl)'); return }
     if (!validarRut(cliente.rut)) { setError('El RUT ingresado no es válido (dígito verificador incorrecto)'); return }
     ir('plancha')
   }
@@ -177,7 +178,7 @@ export default function NuevaVenta({ onNavegar }) {
   }
 
   function reiniciar() {
-    setPaso('cliente'); setCliente({ rut: '', nombre: '', telefono: '' }); setPlancha(null); setCortes(null)
+    setPaso('cliente'); setCliente({ rut: '', nombre: '', telefono: '', email: '' }); setPlancha(null); setCortes(null)
     setCantidad('1'); setFecha(null); setServiciosSel([]); setNota(''); setBoleta(''); setError(''); setVenta(null)
     setBusquedaPlancha('')
   }
@@ -198,6 +199,7 @@ export default function NuevaVenta({ onNavegar }) {
       cantidad: cantidadFinal,
       nota: nota.trim(),
       telefono_cliente: cliente.telefono,
+      cliente_email: cliente.email.trim().toLowerCase() || null,
       cliente_nombre: cliente.nombre.trim(),
       cliente_rut: cliente.rut,
       fecha_agendada: cortes ? fecha : null,
@@ -222,6 +224,7 @@ export default function NuevaVenta({ onNavegar }) {
           cliente_nombre: cliente.nombre.trim(),
           cliente_rut: cliente.rut,
           cliente_telefono: cliente.telefono,
+          cliente_email: cliente.email.trim().toLowerCase() || null,
           plancha_nombre: plancha.plancha_nombre,
           plancha_medida: plancha.plancha_medida,
           piezas: cortes.piezas,
@@ -379,7 +382,7 @@ export default function NuevaVenta({ onNavegar }) {
                     <button key={c.rut} type="button" onMouseDown={() => elegirCliente(c)}
                       style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '8px 12px', fontSize: '12px', color: 'var(--text1)', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ fontWeight: '500' }}>{c.nombre}</div>
-                      <div style={{ color: 'var(--text3)', fontSize: '11px' }}>{c.rut}{c.telefono ? ` · ${c.telefono}` : ''}</div>
+                      <div style={{ color: 'var(--text3)', fontSize: '11px' }}>{c.rut}{c.telefono ? ` · ${c.telefono}` : ''}{c.email ? ` · ${c.email}` : ''}</div>
                     </button>
                   ))}
                 </div>
@@ -395,6 +398,10 @@ export default function NuevaVenta({ onNavegar }) {
             <div>
               <label style={label}>Teléfono</label>
               <input value={cliente.telefono} onChange={e => setCliente({ ...cliente, telefono: e.target.value })} placeholder="+56 9 1234 5678" />
+            </div>
+            <div>
+              <label style={label}>Correo (opcional)</label>
+              <input type="email" value={cliente.email} onChange={e => setCliente({ ...cliente, email: e.target.value })} placeholder="cliente@correo.cl" autoComplete="off" />
             </div>
           </div>
           {sugerencias.length > 0 && (
@@ -526,7 +533,7 @@ export default function NuevaVenta({ onNavegar }) {
           {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock.')}
 
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
-            <p>👤 <strong>{cliente.nombre}</strong> · {cliente.rut}{cliente.telefono ? ` · ${cliente.telefono}` : ''}</p>
+            <p>👤 <strong>{cliente.nombre}</strong> · {cliente.rut}{cliente.telefono ? ` · ${cliente.telefono}` : ''}{cliente.email ? ` · ${cliente.email}` : ''}</p>
             <p>🟫 {plancha.plancha_nombre} {plancha.plancha_medida} <span style={{ color: 'var(--text3)' }}>({plancha.disponible} disponibles)</span></p>
             {cortes ? (
               <>

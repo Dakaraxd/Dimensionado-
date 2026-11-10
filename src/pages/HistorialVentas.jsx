@@ -4,45 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import EditorCortes from '../components/EditorCortes'
-
-const PERIODOS = [
-  { key: 'hoy', label: 'Hoy' },
-  { key: 'semana', label: 'Esta semana' },
-  { key: 'mes', label: 'Este mes' },
-  { key: 'mes_anterior', label: 'Mes anterior' },
-  { key: 'trimestre', label: 'Últimos 3 meses' },
-  { key: 'rango', label: 'Personalizado' },
-]
-
-const TZ = 'America/Santiago'
-const diaDe = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ })
-const horaDe = (iso) => new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
-
-// Límites del período como instantes (medianoche local). `hasta` es exclusivo.
-function limites(periodo, desdeTxt, hastaTxt) {
-  const hoy = new Date()
-  const y = hoy.getFullYear(), m = hoy.getMonth(), d = hoy.getDate()
-  if (periodo === 'hoy') return { desde: new Date(y, m, d), hasta: new Date(y, m, d + 1) }
-  if (periodo === 'semana') {
-    const lunes = d - ((hoy.getDay() + 6) % 7)
-    return { desde: new Date(y, m, lunes), hasta: new Date(y, m, lunes + 7) }
-  }
-  if (periodo === 'mes') return { desde: new Date(y, m, 1), hasta: new Date(y, m + 1, 1) }
-  if (periodo === 'mes_anterior') return { desde: new Date(y, m - 1, 1), hasta: new Date(y, m, 1) }
-  if (periodo === 'trimestre') return { desde: new Date(y, m - 2, 1), hasta: new Date(y, m + 1, 1) }
-  if (!desdeTxt || !hastaTxt) return null
-  const [a, b, c] = desdeTxt.split('-').map(Number)
-  const [e, f, g] = hastaTxt.split('-').map(Number)
-  return { desde: new Date(a, b - 1, c), hasta: new Date(e, f - 1, g + 1) }
-}
-
-function etiquetaDia(clave) {
-  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: TZ })
-  const ayer = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: TZ })
-  if (clave === hoy) return 'Hoy'
-  if (clave === ayer) return 'Ayer'
-  return new Date(clave + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-}
+import { PERIODOS, TZ, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
 
 const card = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px' }
 const chip = (activo) => ({
@@ -98,7 +60,7 @@ export default function HistorialVentas() {
     const antes = new Date(rango.desde.getTime() - 86400000).toISOString()
     const [ords, proys] = await Promise.all([
       supabase.from('ordenes').select(`
-          id, cantidad, estado, nro_boleta, nota, telefono_cliente, cliente_nombre, cliente_rut,
+          id, cantidad, estado, nro_boleta, nota, telefono_cliente, cliente_email, cliente_nombre, cliente_rut,
           creado_en, aprobado_en, fecha_agendada,
           vendedor:profiles!vendedor_id(nombre),
           aprobador:profiles!aprobado_por(nombre),
@@ -166,6 +128,7 @@ export default function HistorialVentas() {
       String(o.nro_boleta ?? '').includes(q) ||
       (o.cliente_nombre ?? '').toLowerCase().includes(q) ||
       (o.cliente_rut ?? '').toLowerCase().includes(q) ||
+      (o.cliente_email ?? '').toLowerCase().includes(q) ||
       `${o.tipo?.nombre ?? ''} ${o.tipo?.medida ?? ''}`.toLowerCase().includes(q) ||
       (o.vendedor?.nombre ?? '').toLowerCase().includes(q))
   )
@@ -211,7 +174,7 @@ export default function HistorialVentas() {
         </button>
         <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '12px' }}>Cortes de la boleta <strong>#{visor.orden.nro_boleta}</strong></p>
         <EditorCortes key={p.id} soloLectura
-          cliente={{ nombre: p.cliente_nombre, rut: p.cliente_rut ?? '', telefono: p.cliente_telefono ?? '' }}
+          cliente={{ nombre: p.cliente_nombre, rut: p.cliente_rut ?? '', telefono: p.cliente_telefono ?? '', email: p.cliente_email ?? '' }}
           plancha={{ plancha_nombre: p.plancha_nombre, plancha_medida: p.plancha_medida }}
           inicial={{ piezas: Array.isArray(p.piezas) ? p.piezas : [], dims, planchas }} />
       </div>
@@ -344,6 +307,7 @@ export default function HistorialVentas() {
                                     {o.cliente_nombre || '—'}
                                     {o.cliente_rut && <span style={{ display: 'block', color: 'var(--text3)', fontSize: '12px' }}>RUT {o.cliente_rut}</span>}
                                     {o.telefono_cliente && <span style={{ display: 'block', color: 'var(--text3)', fontSize: '12px' }}>📞 {o.telefono_cliente}</span>}
+                                    {o.cliente_email && <span style={{ display: 'block', color: 'var(--text3)', fontSize: '12px' }}>✉️ {o.cliente_email}</span>}
                                   </Dato>
                                   <Dato titulo="Plancha">{o.cantidad} × {o.tipo?.nombre} {o.tipo?.medida}
                                     {o.tipo?.categoria && <span style={{ display: 'block', color: 'var(--text3)', fontSize: '12px' }}>{o.tipo.categoria}</span>}

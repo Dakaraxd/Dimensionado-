@@ -63,7 +63,7 @@ export default function Dimensionador({ onNuevaVenta }) {
         <EditorCortes
           key={proyectoActivo.id}
           soloLectura
-          cliente={{ nombre: proyectoActivo.cliente_nombre, rut: proyectoActivo.cliente_rut ?? '', telefono: proyectoActivo.cliente_telefono ?? '' }}
+          cliente={{ nombre: proyectoActivo.cliente_nombre, rut: proyectoActivo.cliente_rut ?? '', telefono: proyectoActivo.cliente_telefono ?? '', email: proyectoActivo.cliente_email ?? '' }}
           plancha={{ plancha_nombre: proyectoActivo.plancha_nombre, plancha_medida: proyectoActivo.plancha_medida }}
           inicial={{ piezas: Array.isArray(proyectoActivo.piezas) ? proyectoActivo.piezas : [], dims, planchas }}
         />
