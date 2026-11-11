@@ -41,9 +41,9 @@ async function leerError(error, mensajePorDefecto) {
 
 // Vincula este equipo con el PIN del usuario que tiene la sesión iniciada.
 // Si el equipo ya estaba vinculado (se pasa su secreto) solo cambia el PIN.
-export async function vincularEquipo({ pin, secreto }) {
+export async function vincularEquipo({ pin, secreto, pinActual }) {
   const { data, error } = await supabase.functions.invoke('pin-dispositivo', {
-    body: { accion: 'registrar', pin, secreto }
+    body: { accion: 'registrar', pin, secreto, pin_actual: pinActual }
   })
   if (error) return leerError(error, 'No se pudo guardar el PIN. Intenta de nuevo.')
   return { secreto: data.secreto }
@@ -60,6 +60,12 @@ export async function activarEquipo({ secreto }) {
   const { data, error } = await supabase.functions.invoke('pin-dispositivo', { body: { accion: 'activar', secreto } })
   if (error) return leerError(error, 'No se pudo activar el acceso rápido. Intenta de nuevo.')
   return { secreto: data.secreto }
+}
+
+// Solo administradores: borra el PIN de otra persona y desvincula sus equipos
+export async function restablecerPin(userId) {
+  const { error } = await supabase.functions.invoke('pin-dispositivo', { body: { accion: 'restablecer', user_id: userId } })
+  return error ? leerError(error, 'No se pudo restablecer el PIN.') : {}
 }
 
 export async function olvidarEquipo(secreto) {

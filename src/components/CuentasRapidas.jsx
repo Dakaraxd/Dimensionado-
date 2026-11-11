@@ -97,8 +97,9 @@ export function PinDialogo({ cuenta, onCerrar, onExito }) {
 }
 
 // Crea (o cambia) el PIN de la sesión actual y vincula este equipo
-export function ConfigurarPin({ usuario, onCerrar, onListo }) {
+export function ConfigurarPin({ usuario, onCerrar, onListo, requierePinActual = false }) {
   const existente = cuentaDe(usuario.id)
+  const [pinActual, setPinActual] = useState('')
   const [pin, setPin] = useState('')
   const [repetir, setRepetir] = useState('')
   const [error, setError] = useState('')
@@ -106,11 +107,12 @@ export function ConfigurarPin({ usuario, onCerrar, onListo }) {
 
   async function guardar(e) {
     e.preventDefault()
-    if (!/^\d{4}$/.test(pin)) { setError('El PIN debe tener 4 dígitos'); return }
+    if (requierePinActual && !/^\d{4}$/.test(pinActual)) { setError('Escribe tu PIN actual (4 dígitos)'); return }
+    if (!/^\d{4}$/.test(pin)) { setError('El PIN nuevo debe tener 4 dígitos'); return }
     if (pin !== repetir) { setError('Los PIN no coinciden'); return }
     setCargando(true)
     setError('')
-    const res = await vincularEquipo({ pin, secreto: existente?.secreto })
+    const res = await vincularEquipo({ pin, secreto: existente?.secreto, pinActual: requierePinActual ? pinActual : undefined })
     setCargando(false)
     if (res.error) { setError(res.error); return }
     guardarCuenta({ user_id: usuario.id, nombre: usuario.nombre, email: usuario.email, secreto: res.secreto })
@@ -126,10 +128,17 @@ export function ConfigurarPin({ usuario, onCerrar, onListo }) {
           Con tu PIN podrás volver a entrar a tu cuenta en <strong>este equipo</strong> sin escribir tu contraseña.
           Es personal: no lo compartas. No elijas uno evidente como 1234 o 0000.
         </p>
-        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>PIN (4 dígitos)</label>
-        <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={4} value={pin}
+        {requierePinActual && (
+          <>
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>Introduce tu PIN actual</label>
+            <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={4} value={pinActual}
+              onChange={e => setPinActual(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={{ ...inputPin, marginBottom: '14px' }} />
+          </>
+        )}
+        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '6px' }}>{requierePinActual ? 'PIN nuevo (4 dígitos)' : 'PIN (4 dígitos)'}</label>
+        <input type="password" inputMode="numeric" autoComplete="off" autoFocus={!requierePinActual} maxLength={4} value={pin}
           onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={inputPin} />
-        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', margin: '12px 0 6px' }}>Repite el PIN</label>
+        <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', margin: '12px 0 6px' }}>{requierePinActual ? 'Repite el PIN nuevo' : 'Repite el PIN'}</label>
         <input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={repetir}
           onChange={e => setRepetir(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={inputPin} />
         {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}

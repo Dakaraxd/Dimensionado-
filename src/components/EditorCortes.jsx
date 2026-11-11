@@ -66,7 +66,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     const base = inicial?.piezas ?? []
     return [...base, ...Array.from({ length: Math.max(0, FILAS_INICIALES - base.length) }, filaVacia)]
   })
-  const [dimensiones, setDimensiones] = useState(inicial?.dims ?? { w: PLANCHA_W_DEFAULT, h: PLANCHA_H_DEFAULT })
+  const [dimensiones] = useState(inicial?.dims ?? { w: PLANCHA_W_DEFAULT, h: PLANCHA_H_DEFAULT })
   const [resultado, setResultado] = useState(inicial?.planchas ?? null)
   const [vista, setVista] = useState(inicial?.planchas ? 'resultado' : 'piezas')
   const [permitirGiro, setPermitirGiro] = useState(true)
@@ -237,14 +237,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
-          <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Dimensiones del tablero (cm):</p>
-          <input type="number" min="10" max="600" value={dimensiones.w}
-            onChange={e => setDimensiones({ ...dimensiones, w: parseFloat(e.target.value) || PLANCHA_W_DEFAULT })}
-            style={{ width: '80px', padding: '5px 8px', fontSize: '12px' }} />
-          <span style={{ fontSize: '12px', color: 'var(--text3)' }}>×</span>
-          <input type="number" min="10" max="600" value={dimensiones.h}
-            onChange={e => setDimensiones({ ...dimensiones, h: parseFloat(e.target.value) || PLANCHA_H_DEFAULT })}
-            style={{ width: '80px', padding: '5px 8px', fontSize: '12px' }} />
+          <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Dimensiones del tablero:</p>
+          <strong style={{ fontSize: '13px' }}>{dimensiones.w} × {dimensiones.h} cm</strong>
           <span style={{ fontSize: '11px', color: 'var(--text3)' }}>(incluye descuento de sierra de {KERF * 10} mm por corte)</span>
         </div>
 

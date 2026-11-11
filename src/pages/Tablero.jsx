@@ -115,6 +115,21 @@ export default function Tablero() {
     fetchDias()
   }
 
+  // Quita la planificación de un día (por ejemplo si se agregó por error). Con órdenes agendadas no se permite.
+  async function handleQuitarDim(d) {
+    if (d.agendadas > 0) {
+      alert(`Este día ya tiene ${d.agendadas} planchas agendadas. Mueve o cancela esas órdenes antes de quitar los cupos.`)
+      return
+    }
+    if (!confirm(`¿Quitar los cupos del ${d.dia} (${d.dimensionadores} dimensionador${d.dimensionadores === 1 ? '' : 'es'})? El día quedará sin planificar.`)) return
+    setGuardando(true)
+    const { error } = await supabase.from('planificacion_dias').delete().eq('fecha', d.fecha)
+    setGuardando(false)
+    if (error) { alert('No se pudieron quitar los cupos. Intenta de nuevo.'); return }
+    setEditando(null)
+    fetchDias()
+  }
+
   const nombreMes = new Date(mes.year, mes.month).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
 
   const colorCupo = (d) => {
@@ -336,6 +351,12 @@ export default function Tablero() {
                           </button>
                         ))}
                       </div>
+                      {d.id && (
+                        <button onClick={() => handleQuitarDim(d)} disabled={guardando}
+                          style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: '6px', padding: '3px', fontSize: '10px' }}>
+                          🗑️ Quitar cupos
+                        </button>
+                      )}
                       <button onClick={() => setEditando(null)}
                         style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '10px' }}>
                         Cancelar
