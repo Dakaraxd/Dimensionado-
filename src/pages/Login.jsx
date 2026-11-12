@@ -59,8 +59,8 @@ export default function Login() {
         width: '100%',
         maxWidth: '400px'
       }}>
-        <div style={{ marginBottom: '28px' }}>
-          <img src="/logo-sodimac.png" alt="Sodimac" style={{ height: '84px', width: 'auto', display: 'block', marginBottom: '14px' }} />
+        <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+          <img src="/logo-sodimac.png" alt="Sodimac" style={{ height: '84px', width: 'auto', display: 'block', margin: '0 auto 14px' }} />
           <h1 style={{ fontSize: '20px', fontWeight: '500', color: 'var(--text1)', marginBottom: '4px' }}>
             Dimensionado
           </h1>
