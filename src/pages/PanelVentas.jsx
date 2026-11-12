@@ -6,8 +6,8 @@ import {
 import { supabase } from '../lib/supabase'
 import { aYMD } from '../lib/fechas'
 
-const COLORES_BARRAS = ['#f26b1d', '#2563eb', '#15803d', '#7c3aed', '#dc2626', '#0891b2', '#db2777', '#65a30d']
-const COLOR_PRIMARIO = '#f26b1d'
+const COLORES_BARRAS = ['#e30613', '#004b9b', '#f5b800', '#15803d', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
+const COLOR_PRIMARIO = '#e30613'
 const UMBRAL_STOCK_BAJO = 10
 const EJE_TICK = { fill: '#6b7280', fontSize: 11 }
 const GRILLA = 'rgba(15,23,42,0.08)'
@@ -196,7 +196,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
         pdf.setTextColor(30, 32, 39)
         pdf.text(texto, margen, y)
         y += 3
-        pdf.setDrawColor(242, 107, 29)
+        pdf.setDrawColor(227, 6, 19)
         pdf.setLineWidth(0.5)
         pdf.line(margen, y, margen + anchoUtil, y)
         y += 7
@@ -217,7 +217,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
       y += 5
       pdf.setFontSize(9)
       pdf.setTextColor(130, 130, 130)
-      pdf.text(`Generado el ${new Date().toLocaleString('es-CL')} — Dimensionado, Home Center`, margen, y)
+      pdf.text(`Generado el ${new Date().toLocaleString('es-CL')} — Dimensionado, Sodimac`, margen, y)
       y += 10
 
       // ---- Resumen ----
@@ -261,7 +261,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
         x: chartX + (chartW * i) / (stats.porDia.length - 1 || 1),
         y: chartY + chartH - (d.cantidad / maxCantidad) * chartH
       }))
-      pdf.setDrawColor(242, 107, 29)
+      pdf.setDrawColor(227, 6, 19)
       pdf.setLineWidth(0.6)
       for (let i = 0; i < puntos.length - 1; i++) {
         pdf.line(puntos[i].x, puntos[i].y, puntos[i + 1].x, puntos[i + 1].y)
@@ -285,7 +285,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
         head: [['#', 'Tipo de plancha', 'Planchas vendidas']],
         body: stats.porTipo.map((t, i) => [String(i + 1), t.nombre, String(t.cantidad)]),
         theme: 'striped',
-        headStyles: { fillColor: [242, 107, 29], fontSize: 9 },
+        headStyles: { fillColor: [227, 6, 19], fontSize: 9 },
         bodyStyles: { fontSize: 9 },
         columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right', cellWidth: 40 } }
       })

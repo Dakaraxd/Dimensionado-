@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { accederConPin, vincularEquipo, guardarCuenta, cuentaDe } from '../lib/cuentas'
 
-const COLORES = ['#f26b1d', '#2563eb', '#15803d', '#7c3aed', '#db2777', '#0891b2', '#b45309']
+const COLORES = ['#e30613', '#004b9b', '#15803d', '#7c3aed', '#db2777', '#0891b2', '#b45309']
 
 export function Avatar({ nombre, tamano = 40 }) {
   const inicial = (nombre ?? '?').trim().charAt(0).toUpperCase() || '?'

@@ -140,7 +140,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       pdf.setFontSize(9); pdf.setFont('helvetica', 'normal')
       pdf.setTextColor(107, 114, 128)
       pdf.text(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }), margin, 29)
-      pdf.setDrawColor(242, 107, 29); pdf.setLineWidth(0.4)
+      pdf.setDrawColor(227, 6, 19); pdf.setLineWidth(0.4)
       pdf.line(margin, 33, pageW - margin, 33)
 
       pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(31, 41, 55)
@@ -190,7 +190,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           pdf.text(`Plancha ${pi + 1} de ${resultado.length}`, margin, 18)
           pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(107, 114, 128)
           pdf.text(`${resultado[pi].cortes.length} piezas · Cliente: ${cliente.nombre}`, margin, 25)
-          pdf.setDrawColor(242, 107, 29); pdf.line(margin, 28, 195, 28)
+          pdf.setDrawColor(227, 6, 19); pdf.line(margin, 28, 195, 28)
 
           if (svgs[pi]) {
             const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })

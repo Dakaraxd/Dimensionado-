@@ -224,8 +224,8 @@ export default function Tablero() {
 
             return (
               <div key={d.fecha} style={{
-                background: esHoyDia ? 'rgba(242,107,29,0.12)' : pasado ? 'var(--bg3)' : colores.bg,
-                border: `1px solid ${esHoyDia ? 'var(--primary)' : tieneOrdenes ? 'rgba(242,107,29,0.35)' : colores.border}`,
+                background: esHoyDia ? 'rgba(227,6,19,0.12)' : pasado ? 'var(--bg3)' : colores.bg,
+                border: `1px solid ${esHoyDia ? 'var(--primary)' : tieneOrdenes ? 'rgba(227,6,19,0.35)' : colores.border}`,
                 borderRadius: '10px',
                 padding: '8px',
                 minHeight: '90px',

@@ -97,13 +97,10 @@ export default function Dashboard() {
 
       <aside className={`sidebar${menuAbierto ? ' abierta' : ''}`}>
         <div className="sidebar-brand">
-          <div style={{
-            width: '38px', height: '38px', borderRadius: '10px', background: 'var(--primary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0
-          }}><span style={{ color: '#fff', fontWeight: 800, fontSize: '20px' }}>D</span></div>
+          <img src="/logo-sodimac.png" alt="Sodimac" style={{ height: '44px', width: 'auto', flexShrink: 0 }} />
           <div>
             <h1 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text1)', lineHeight: 1.2 }}>Dimensionado</h1>
-            <p style={{ fontSize: '11px', color: 'var(--text3)' }}>Home Center</p>
+            <p style={{ fontSize: '11px', color: 'var(--text3)' }}>Sodimac</p>
           </div>
         </div>
 
@@ -161,7 +158,7 @@ export default function Dashboard() {
 
         <main className="main-content">
           {!tienePin && pinEnServidor === false && !invitacionOculta && user && (
-            <div style={{ background: 'var(--primary-soft)', border: '1px solid rgba(242,107,29,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ background: 'var(--primary-soft)', border: '1px solid rgba(227,6,19,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <p style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'var(--text1)' }}>
                 🔐 <strong>Acceso rápido:</strong> crea un PIN para cambiar de usuario en este equipo sin escribir tu contraseña.
                 {errorPin && <span style={{ display: 'block', color: 'var(--red)', marginTop: '4px' }}>{errorPin}</span>}

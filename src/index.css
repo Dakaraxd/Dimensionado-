@@ -1,8 +1,7 @@
 @import "tailwindcss";
 
-/* Tema claro inspirado en Homecenter Sodimac: naranja corporativo sobre fondos claros.
-   --primary es el color de marca (botones, selección); --info es un azul neutro
-   para estados informativos que no deben confundirse con la marca. */
+/* Tema claro con los colores de Sodimac: rojo corporativo (--primary), azul (--info) y amarillo
+   (--accent) sobre fondos claros. --red se mantiene como rojo de error/alerta. */
 :root {
   color-scheme: light;
 
@@ -14,12 +13,13 @@
   --text2: #4b5563;
   --text3: #6b7280;
 
-  --primary: #f26b1d;
-  --primary-dark: #d4560f;
-  --primary-soft: rgba(242, 107, 29, 0.12);
+  --primary: #e30613;
+  --primary-dark: #b9050f;
+  --primary-soft: rgba(227, 6, 19, 0.09);
 
-  --info: #2563eb;
-  --info-soft: rgba(37, 99, 235, 0.1);
+  --info: #004b9b;
+  --info-soft: rgba(0, 75, 155, 0.1);
+  --accent: #ffd500;
   --green: #15803d;
   --green-soft: rgba(21, 128, 61, 0.12);
   --amber: #b45309;
@@ -183,7 +183,7 @@ button { cursor: pointer; font-family: inherit; }
   font-weight: 600;
   transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
 }
-.quick-tile:hover { border-color: var(--primary); box-shadow: 0 4px 14px rgba(242, 107, 29, 0.18); transform: translateY(-1px); }
+.quick-tile:hover { border-color: var(--primary); box-shadow: 0 4px 14px rgba(227, 6, 19, 0.16); transform: translateY(-1px); }
 .quick-tile .quick-icon { font-size: 30px; line-height: 1; }
 .quick-badge {
   position: absolute;
