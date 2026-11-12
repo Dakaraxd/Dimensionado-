@@ -124,7 +124,7 @@ export default function Ordenes({ onNuevaVenta }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Registro de salida</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{ordenes.length} orden{ordenes.length !== 1 ? 'es' : ''} pendiente{ordenes.length !== 1 ? 's' : ''} de boleta</p>
+          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{ordenes.length} orden{ordenes.length !== 1 ? 'es' : ''} en espera de boleta</p>
         </div>
         {puedeOperar && onNuevaVenta && (
           <button onClick={onNuevaVenta}
@@ -165,8 +165,8 @@ export default function Ordenes({ onNuevaVenta }) {
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando órdenes...</p>
       ) : ordenes.length === 0 ? (
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '40px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text3)' }}>No hay salidas pendientes de boleta.</p>
-          <p style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '6px' }}>Las órdenes nuevas se aprueban directo desde “Nueva orden”.</p>
+          <p style={{ color: 'var(--text3)' }}>No hay órdenes en espera.</p>
+          <p style={{ color: 'var(--text3)', fontSize: '12px', marginTop: '6px' }}>Si un cliente se demora en pagar, en “Nueva orden” usa “Dejar en espera” y la orden quedará aquí hasta que traiga la boleta.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -186,7 +186,7 @@ export default function Ordenes({ onNuevaVenta }) {
                     <div key={o.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ background: 'var(--amber-soft)', color: 'var(--amber)', fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '99px' }}>Pendiente</span>
+                          <span style={{ background: 'var(--amber-soft)', color: 'var(--amber)', fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '99px' }}>En espera</span>
                           <span style={{ fontSize: '11px', color: 'var(--text3)' }}>{new Date(o.creado_en).toLocaleString('es-CL')}</span>
                         </div>
                         <p style={{ fontSize: '15px', fontWeight: '500', marginBottom: '6px' }}>
