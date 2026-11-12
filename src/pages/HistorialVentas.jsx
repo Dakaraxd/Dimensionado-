@@ -328,7 +328,7 @@ export default function HistorialVentas() {
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                   {tieneCortes && (
                                     <button onClick={() => verCortes(o)}
-                                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid rgba(242,107,29,0.35)', borderRadius: '8px', padding: '7px 14px', fontSize: '12px', fontWeight: 500 }}>
+                                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid rgba(227,6,19,0.35)', borderRadius: '8px', padding: '7px 14px', fontSize: '12px', fontWeight: 500 }}>
                                       ✂️ Ver cortes
                                     </button>
                                   )}

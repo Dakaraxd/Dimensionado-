@@ -185,10 +185,11 @@ export default function NuevaVenta({ onNavegar }) {
 
   // Crea la orden, guarda el proyecto de cortes y aprueba la boleta en una sola acción.
   // Si algo falla a mitad de camino la orden queda anulada: nunca queda una venta a medias.
-  async function aprobarVenta() {
+  // Con enEspera=true (el cliente se demora en pagar) la deja pendiente, sin boleta ni descuento de stock.
+  async function guardarOrden(enEspera = false) {
     setError('')
     const cantidadFinal = cortes ? tableros : parseInt(cantidad)
-    if (!boleta.trim()) { setError('Ingresa el número de boleta'); return }
+    if (!enEspera && !boleta.trim()) { setError('Ingresa el número de boleta'); return }
     if (!cantidadFinal || cantidadFinal < 1) { setError('La cantidad de planchas debe ser al menos 1'); return }
     if (cantidadFinal > plancha.disponible) { setError(`Solo hay ${plancha.disponible} planchas disponibles en stock`); return }
 
@@ -235,10 +236,12 @@ export default function NuevaVenta({ onNavegar }) {
         })
         if (e) throw e
       }
-      const { error: e } = await supabase.from('ordenes')
-        .update({ estado: 'aprobada', nro_boleta: boleta.trim(), aprobado_por: profile.id })
-        .eq('id', orden.id)
-      if (e) throw e
+      if (!enEspera) {
+        const { error: e } = await supabase.from('ordenes')
+          .update({ estado: 'aprobada', nro_boleta: boleta.trim(), aprobado_por: profile.id })
+          .eq('id', orden.id)
+        if (e) throw e
+      }
     } catch (err) {
       await supabase.from('ordenes').update({ estado: 'cancelada' }).eq('id', orden.id)
       setError(`${mensajeDe(err)} No se descontó stock ni se registró la orden.`)
@@ -255,15 +258,17 @@ export default function NuevaVenta({ onNavegar }) {
         servicios: serviciosSel.length > 0 ? servicios.filter(s => serviciosSel.includes(s.id)).map(s => s.nombre).join(', ') : null
       }
     }, profile)
-    await registrarLog({
-      accion: 'APROBAR', entidad: 'orden',
-      detalle: { orden_id: orden.id, nro_boleta: boleta.trim(), cantidad: cantidadFinal, plancha: nombrePlancha }
-    }, profile)
+    if (!enEspera) {
+      await registrarLog({
+        accion: 'APROBAR', entidad: 'orden',
+        detalle: { orden_id: orden.id, nro_boleta: boleta.trim(), cantidad: cantidadFinal, plancha: nombrePlancha }
+      }, profile)
+    }
     if (cortes) {
       await registrarLog({ accion: 'CREAR', entidad: 'proyecto', detalle: { cliente: cliente.nombre.trim(), plancha: nombrePlancha } }, profile)
     }
 
-    setVenta({ boleta: boleta.trim(), cantidad: cantidadFinal, cortes: !!cortes, fecha: cortes ? fecha : null, cliente: cliente.nombre.trim(), plancha: nombrePlancha })
+    setVenta({ enEspera, boleta: boleta.trim(), cantidad: cantidadFinal, cortes: !!cortes, fecha: cortes ? fecha : null, cliente: cliente.nombre.trim(), plancha: nombrePlancha })
     setPaso('listo')
     setGuardando(false)
   }
@@ -313,18 +318,22 @@ export default function NuevaVenta({ onNavegar }) {
       <div style={{ color: 'var(--text1)', maxWidth: '620px', margin: '0 auto' }}>
         <div style={{ ...card, textAlign: 'center' }}>
           <div style={{ fontSize: '44px', marginBottom: '8px' }}>✅</div>
-          <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '6px' }}>Orden aprobada</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '18px' }}>Boleta <strong>#{venta.boleta}</strong> · {venta.cliente}</p>
+          <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '6px' }}>{venta.enEspera ? 'Orden en espera' : 'Orden aprobada'}</h2>
+          <p style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '18px' }}>{venta.enEspera ? 'Sin boleta todavía' : <>Boleta <strong>#{venta.boleta}</strong></>} · {venta.cliente}</p>
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', textAlign: 'left', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
             <p>🟫 {venta.cantidad} × {venta.plancha}</p>
             <p>✂️ {venta.cortes ? 'Con cortes: el proyecto quedó guardado y asociado a esta orden' : 'Sin cortes'}</p>
             {venta.fecha && <p>📅 Taller: {formatoDia(venta.fecha)}</p>}
           </div>
-          {venta.fecha && venta.fecha !== hoy && (
+          {venta.enEspera && (
+            <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px', lineHeight: 1.5 }}>⏸ El stock aún no se descuenta. Cuando el cliente pague, ingresa la boleta en <strong>Registro de salida</strong> para aprobarla.</p>
+          )}
+          {venta.fecha && venta.fecha !== hoy && !venta.enEspera && (
             <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px' }}>📞 Recuerda avisarle al cliente el día de entrega.</p>
           )}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={reiniciar} style={btnPrimario}>+ Nueva orden</button>
+            {venta.enEspera && <button onClick={() => onNavegar?.('ordenes')} style={btnSecundario}>Ir a Registro de salida</button>}
             {venta.cortes && <button onClick={() => onNavegar?.('reportes', 'dimensionado')} style={btnSecundario}>Ver historial de dimensionado</button>}
             <button onClick={() => onNavegar?.('inicio')} style={btnSecundario}>Ir al inicio</button>
           </div>
@@ -530,7 +539,7 @@ export default function NuevaVenta({ onNavegar }) {
       {/* 5 · BOLETA */}
       {paso === 'boleta' && (
         <div style={card}>
-          {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock.')}
+          {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock. Si el cliente aún no paga, usa “Dejar en espera”.')}
 
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
             <p>👤 <strong>{cliente.nombre}</strong> · {cliente.rut}{cliente.telefono ? ` · ${cliente.telefono}` : ''}{cliente.email ? ` · ${cliente.email}` : ''}</p>
@@ -592,10 +601,17 @@ export default function NuevaVenta({ onNavegar }) {
           {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '14px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', gap: '10px', flexWrap: 'wrap' }}>
             <button onClick={() => ir(cortes ? 'dia' : 'cortes')} style={btnSecundario} disabled={guardando}>← Volver</button>
-            <button onClick={aprobarVenta} disabled={guardando}
-              style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 26px', fontSize: '14px', fontWeight: '600', opacity: guardando ? 0.7 : 1 }}>
-              {guardando ? 'Guardando...' : '✓ Aprobar orden'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button onClick={() => guardarOrden(true)} disabled={guardando}
+                title="El cliente aún no paga: queda en Registro de salida y no se descuenta stock"
+                style={{ background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '500', opacity: guardando ? 0.7 : 1 }}>
+                ⏸ Dejar en espera
+              </button>
+              <button onClick={() => guardarOrden(false)} disabled={guardando}
+                style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 26px', fontSize: '14px', fontWeight: '600', opacity: guardando ? 0.7 : 1 }}>
+                {guardando ? 'Guardando...' : '✓ Aprobar orden'}
+              </button>
+            </div>
           </div>
         </div>
       )}

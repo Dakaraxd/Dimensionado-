@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
+import { restablecerPin } from '../lib/cuentas'
+
+const ROLES = { vendedor: 'Vendedor', administrador: 'Administrador', solo_lectura: 'Solo lectura' }
 
 export default function Usuarios() {
+  const { profile, user } = useAuth()
+  const [editando, setEditando] = useState(null) // { id, nombre, rol, activo }
+  const [guardandoEd, setGuardandoEd] = useState(false)
+  const [errorEd, setErrorEd] = useState('')
   const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -80,6 +88,46 @@ export default function Usuarios() {
     setCreando(false)
   }
 
+  const adminsActivos = usuarios.filter(u => u.rol === 'administrador' && u.activo !== false).length
+
+  async function guardarEdicion(original) {
+    const nombre = editando.nombre.trim()
+    if (nombre.length < 2) { setErrorEd('Escribe el nombre'); return }
+    const esYo = original.id === user?.id
+    if (esYo && (editando.rol !== original.rol || editando.activo === false)) {
+      setErrorEd('No puedes cambiar tu propio rol ni desactivarte a ti mismo: pídeselo a otro administrador.')
+      return
+    }
+    const dejaDeSerAdmin = original.rol === 'administrador' && original.activo !== false &&
+      (editando.rol !== 'administrador' || editando.activo === false)
+    if (dejaDeSerAdmin && adminsActivos <= 1) {
+      setErrorEd('Debe quedar al menos un administrador activo.')
+      return
+    }
+    setGuardandoEd(true)
+    setErrorEd('')
+    const { error } = await supabase.from('profiles')
+      .update({ nombre, rol: editando.rol, activo: editando.activo })
+      .eq('id', original.id)
+    setGuardandoEd(false)
+    if (error) { setErrorEd('No se pudo guardar. Intenta de nuevo.'); return }
+    await registrarLog({
+      accion: 'EDITAR', entidad: 'usuario',
+      detalle: { nombre, email: original.email, rol_anterior: original.rol, rol: editando.rol, activo: editando.activo }
+    }, profile)
+    setEditando(null)
+    setExito(`Usuario ${nombre} actualizado`)
+    fetchUsuarios()
+  }
+
+  async function resetearPin(u) {
+    if (!confirm(`¿Restablecer el PIN de ${u.nombre}? Se borrará su PIN y se desvincularán sus equipos. Para volver a usar el acceso rápido tendrá que entrar con su contraseña y crear un PIN nuevo.`)) return
+    setErrorEd('')
+    const res = await restablecerPin(u.id)
+    if (res.error) { setErrorEd(res.error); return }
+    setExito(`PIN de ${u.nombre} restablecido`)
+  }
+
   const rolColor = {
     administrador: { bg: 'var(--purple-soft)', color: 'var(--purple)' },
     vendedor: { bg: 'var(--primary-soft)', color: 'var(--primary)' },
@@ -146,6 +194,10 @@ export default function Usuarios() {
         </form>
       )}
 
+      {errorEd && (
+        <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px' }}>{errorEd}</p>
+      )}
+
       {loading ? (
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando usuarios...</p>
       ) : (
@@ -153,14 +205,42 @@ export default function Usuarios() {
           <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg3)' }}>
-                {['Nombre', 'Correo', 'Rol', 'Desde'].map(h => (
+                {['Nombre', 'Correo', 'Rol', 'Estado', 'Desde', ''].map(h => (
                   <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {usuarios.map(u => (
-                <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
+              {usuarios.map(u => editando?.id === u.id ? (
+                <tr key={u.id} style={{ borderTop: '1px solid var(--border)', background: 'var(--bg3)' }}>
+                  <td style={{ padding: '10px 16px' }}>
+                    <input type="text" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} />
+                  </td>
+                  <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{u.email}</td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <select value={editando.rol} onChange={e => setEditando({ ...editando, rol: e.target.value })}>
+                      {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editando.activo} style={{ width: '16px', height: '16px' }}
+                        onChange={e => setEditando({ ...editando, activo: e.target.checked })} />
+                      Activo
+                    </label>
+                  </td>
+                  <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{new Date(u.creado_en).toLocaleDateString('es-CL')}</td>
+                  <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => guardarEdicion(u)} disabled={guardandoEd}
+                      style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 600, marginRight: '6px' }}>
+                      {guardandoEd ? 'Guardando...' : 'Guardar'}
+                    </button>
+                    <button onClick={() => { setEditando(null); setErrorEd('') }}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px' }}>Cancelar</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={u.id} style={{ borderTop: '1px solid var(--border)', opacity: u.activo === false ? 0.6 : 1 }}>
                   <td style={{ padding: '12px 16px', fontWeight: '500', color: 'var(--text1)' }}>{u.nombre}</td>
                   <td style={{ padding: '12px 16px', color: 'var(--text3)' }}>{u.email}</td>
                   <td style={{ padding: '12px 16px' }}>
@@ -172,8 +252,21 @@ export default function Usuarios() {
                       {u.rol?.replace('_', ' ')}
                     </span>
                   </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{
+                      background: u.activo === false ? 'var(--red-soft)' : 'var(--green-soft)',
+                      color: u.activo === false ? 'var(--red)' : 'var(--green)',
+                      fontSize: '11px', padding: '2px 8px', borderRadius: '99px', fontWeight: '500'
+                    }}>{u.activo === false ? 'Inactivo' : 'Activo'}</span>
+                  </td>
                   <td style={{ padding: '12px 16px', color: 'var(--text3)' }}>
                     {new Date(u.creado_en).toLocaleDateString('es-CL')}
+                  </td>
+                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => { setEditando({ id: u.id, nombre: u.nombre ?? '', rol: u.rol, activo: u.activo !== false }); setErrorEd(''); setExito('') }}
+                      style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginRight: '6px' }}>✏️ Editar</button>
+                    <button onClick={() => resetearPin(u)} title="Borra su PIN para que cree uno nuevo"
+                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px' }}>🔐 Restablecer PIN</button>
                   </td>
                 </tr>
               ))}

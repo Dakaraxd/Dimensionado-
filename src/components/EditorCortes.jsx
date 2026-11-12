@@ -66,7 +66,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     const base = inicial?.piezas ?? []
     return [...base, ...Array.from({ length: Math.max(0, FILAS_INICIALES - base.length) }, filaVacia)]
   })
-  const [dimensiones, setDimensiones] = useState(inicial?.dims ?? { w: PLANCHA_W_DEFAULT, h: PLANCHA_H_DEFAULT })
+  const [dimensiones] = useState(inicial?.dims ?? { w: PLANCHA_W_DEFAULT, h: PLANCHA_H_DEFAULT })
   const [resultado, setResultado] = useState(inicial?.planchas ?? null)
   const [vista, setVista] = useState(inicial?.planchas ? 'resultado' : 'piezas')
   const [permitirGiro, setPermitirGiro] = useState(true)
@@ -140,7 +140,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       pdf.setFontSize(9); pdf.setFont('helvetica', 'normal')
       pdf.setTextColor(107, 114, 128)
       pdf.text(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }), margin, 29)
-      pdf.setDrawColor(242, 107, 29); pdf.setLineWidth(0.4)
+      pdf.setDrawColor(227, 6, 19); pdf.setLineWidth(0.4)
       pdf.line(margin, 33, pageW - margin, 33)
 
       pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(31, 41, 55)
@@ -190,7 +190,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           pdf.text(`Plancha ${pi + 1} de ${resultado.length}`, margin, 18)
           pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(107, 114, 128)
           pdf.text(`${resultado[pi].cortes.length} piezas · Cliente: ${cliente.nombre}`, margin, 25)
-          pdf.setDrawColor(242, 107, 29); pdf.line(margin, 28, 195, 28)
+          pdf.setDrawColor(227, 6, 19); pdf.line(margin, 28, 195, 28)
 
           if (svgs[pi]) {
             const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })
@@ -237,14 +237,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
-          <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Dimensiones del tablero (cm):</p>
-          <input type="number" min="10" max="600" value={dimensiones.w}
-            onChange={e => setDimensiones({ ...dimensiones, w: parseFloat(e.target.value) || PLANCHA_W_DEFAULT })}
-            style={{ width: '80px', padding: '5px 8px', fontSize: '12px' }} />
-          <span style={{ fontSize: '12px', color: 'var(--text3)' }}>×</span>
-          <input type="number" min="10" max="600" value={dimensiones.h}
-            onChange={e => setDimensiones({ ...dimensiones, h: parseFloat(e.target.value) || PLANCHA_H_DEFAULT })}
-            style={{ width: '80px', padding: '5px 8px', fontSize: '12px' }} />
+          <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Dimensiones del tablero:</p>
+          <strong style={{ fontSize: '13px' }}>{dimensiones.w} × {dimensiones.h} cm</strong>
           <span style={{ fontSize: '11px', color: 'var(--text3)' }}>(incluye descuento de sierra de {KERF * 10} mm por corte)</span>
         </div>
 

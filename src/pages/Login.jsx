@@ -59,17 +59,12 @@ export default function Login() {
         width: '100%',
         maxWidth: '400px'
       }}>
-        <div style={{ marginBottom: '28px' }}>
-          <div style={{
-            width: '40px', height: '40px', borderRadius: '10px',
-            background: 'var(--primary)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            fontSize: '20px', marginBottom: '16px'
-          }}><span style={{ color: '#fff', fontWeight: 800, fontSize: '20px' }}>D</span></div>
+        <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+          <img src="/logo-sodimac.png" alt="Sodimac" style={{ height: '84px', width: 'auto', display: 'block', margin: '0 auto 14px' }} />
           <h1 style={{ fontSize: '20px', fontWeight: '500', color: 'var(--text1)', marginBottom: '4px' }}>
             Dimensionado
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Home Center — Inicia sesión</p>
+          <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Sodimac — Inicia sesión</p>
         </div>
 
         {cuentas.length > 0 && !usarOtra && !modoRecuperar ? (

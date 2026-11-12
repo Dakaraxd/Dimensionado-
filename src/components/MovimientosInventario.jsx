@@ -21,12 +21,11 @@ const chip = (activo) => ({
   color: activo ? '#fff' : 'var(--text2)'
 })
 
-function Tarjeta({ icono, titulo, valor, detalle, color = 'var(--text1)' }) {
+function Tarjeta({ icono, titulo, valor, color = 'var(--text1)' }) {
   return (
     <div style={{ ...card, padding: '14px 18px' }}>
       <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600, marginBottom: '6px' }}>{icono} {titulo}</p>
       <p style={{ fontSize: '26px', fontWeight: 700, color, lineHeight: 1.15 }}>{valor}</p>
-      <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>{detalle}</p>
     </div>
   )
 }
@@ -137,13 +136,12 @@ export default function MovimientosInventario({ recarga = 0 }) {
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '18px' }}>
-            <Tarjeta icono="📥" titulo="Ingresos" valor={resumen.ingresos} color="var(--green)" detalle="planchas que entraron" />
-            <Tarjeta icono="🗑️" titulo="Mermas" valor={resumen.mermas} color={resumen.mermas > 0 ? 'var(--red)' : 'var(--text1)'}
-              detalle={resumen.pctMerma !== null ? `${resumen.pctMerma}% de lo ingresado` : 'planchas dañadas o perdidas'} />
-            <Tarjeta icono="↩️" titulo="Devoluciones" valor={resumen.devoluciones} detalle="volvieron al stock" />
-            <Tarjeta icono="⚖️" titulo="Ajustes (neto)" valor={signo(resumen.ajustes)} detalle="por conteo físico" />
-            <Tarjeta icono="🛒" titulo="Salidas por venta" valor={resumen.ventas} detalle="planchas vendidas" />
-            <Tarjeta icono="📊" titulo="Variación neta" valor={signo(resumen.neto)} color={resumen.neto < 0 ? 'var(--red)' : 'var(--green)'} detalle="entradas menos salidas" />
+            <Tarjeta icono="📥" titulo="Ingresos" valor={resumen.ingresos} color="var(--green)" />
+            <Tarjeta icono="🗑️" titulo="Mermas" valor={resumen.mermas} color={resumen.mermas > 0 ? 'var(--red)' : 'var(--text1)'} />
+            <Tarjeta icono="↩️" titulo="Devoluciones" valor={resumen.devoluciones} />
+            <Tarjeta icono="⚖️" titulo="Ajustes (neto)" valor={signo(resumen.ajustes)} />
+            <Tarjeta icono="🛒" titulo="Salidas por venta" valor={resumen.ventas} />
+            <Tarjeta icono="📊" titulo="Variación neta" valor={signo(resumen.neto)} color={resumen.neto < 0 ? 'var(--red)' : 'var(--green)'} />
           </div>
 
           <div style={{ marginBottom: '10px' }}>

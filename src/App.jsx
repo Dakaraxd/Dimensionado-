@@ -25,6 +25,16 @@ function ProtectedRoute({ children, roles }) {
     </div>
   )
 
+  if (profile.activo === false) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ flexDirection: 'column', gap: '12px', textAlign: 'center', padding: '0 16px' }}>
+      <p className="text-red-500">Tu cuenta está desactivada. Contacta al administrador.</p>
+      <button onClick={signOut}
+        style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', cursor: 'pointer' }}>
+        Cerrar sesión
+      </button>
+    </div>
+  )
+
   if (roles && !roles.includes(profile?.rol)) return (
     <div className="min-h-screen flex items-center justify-center">
       <p className="text-red-500">No tienes permisos para ver esta página.</p>

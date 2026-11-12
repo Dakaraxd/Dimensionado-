@@ -10,7 +10,7 @@ function crearAdmin() {
   const tablas: Record<string, Record<string, unknown>[]> = {
     dispositivos_pin: [],
     pin_usuario: [],
-    profiles: [{ id: U1, nombre: 'Ana', activo: true }, { id: U2, nombre: 'Beto', activo: false }],
+    profiles: [{ id: U1, nombre: 'Ana', activo: true, rol: 'administrador' }, { id: U2, nombre: 'Beto', activo: false, rol: 'vendedor' }],
     logs: [],
   }
   const usuarios: Record<string, string> = { [U1]: 'ana@test.cl', [U2]: 'beto@test.cl' }
@@ -64,8 +64,8 @@ function crearAdmin() {
 const post = (cuerpo: unknown) => new Request('http://x/', { method: 'POST', body: JSON.stringify(cuerpo) })
 const leer = async (r: Response) => ({ status: r.status, ...(await r.json()) })
 
-async function vincular(admin: unknown, usuario: string, pin: string) {
-  const r = await leer(await pinDispositivo(post({ accion: 'registrar', pin }), admin, usuario))
+async function vincular(admin: unknown, usuario: string, pin: string, pin_actual?: string) {
+  const r = await leer(await pinDispositivo(post({ accion: 'registrar', pin, pin_actual }), admin, usuario))
   assertEquals(r.status, 200)
   return r.secreto as string
 }
@@ -176,7 +176,7 @@ Deno.test('Cambiar el PIN de un equipo conserva el secreto, reactiva y reinicia 
   const { admin, tablas } = crearAdmin()
   const secreto = await vincular(admin, U1, '4827')
   tablas.dispositivos_pin[0].intentos = 3
-  const r = await leer(await pinDispositivo(post({ accion: 'registrar', pin: '7351', secreto }), admin, U1))
+  const r = await leer(await pinDispositivo(post({ accion: 'registrar', pin: '7351', pin_actual: '4827', secreto }), admin, U1))
   assertEquals(r.secreto, secreto)
   assertEquals(tablas.dispositivos_pin.length, 1)
   assertEquals((await leer(await cambiarUsuario(post({ user_id: U1, secreto, pin: '4827' }), admin))).status, 401)
@@ -200,8 +200,9 @@ Deno.test('Un usuario no puede olvidar el equipo de otro', async () => {
 
 Deno.test('Límite de equipos por usuario', async () => {
   const { admin } = crearAdmin()
-  for (let i = 0; i < 10; i++) await vincular(admin, U1, '4827')
-  const r = await leer(await pinDispositivo(post({ accion: 'registrar', pin: '4827' }), admin, U1))
+  await vincular(admin, U1, '4827')
+  for (let i = 0; i < 9; i++) assertEquals((await leer(await pinDispositivo(post({ accion: 'activar' }), admin, U1))).status, 200)
+  const r = await leer(await pinDispositivo(post({ accion: 'activar' }), admin, U1))
   assertEquals(r.status, 400)
 })
 
@@ -234,7 +235,7 @@ Deno.test('El PIN es el mismo en todos los equipos y cambiarlo en uno lo cambia 
   const b = (await leer(await pinDispositivo(post({ accion: 'activar' }), admin, U1))).secreto as string
   assert(a !== b)
   assertEquals((await leer(await cambiarUsuario(post({ user_id: U1, secreto: b, pin: '4827' }), admin))).status, 200)
-  await pinDispositivo(post({ accion: 'registrar', pin: '7351', secreto: a }), admin, U1)
+  await pinDispositivo(post({ accion: 'registrar', pin: '7351', pin_actual: '4827', secreto: a }), admin, U1)
   assertEquals((await leer(await cambiarUsuario(post({ user_id: U1, secreto: b, pin: '4827' }), admin))).status, 401)
   assertEquals((await leer(await cambiarUsuario(post({ user_id: U1, secreto: b, pin: '7351' }), admin))).status, 200)
 })
@@ -257,4 +258,56 @@ Deno.test('Un equipo sin PIN de usuario (PIN eliminado) no deja entrar', async (
   const r = await leer(await cambiarUsuario(post({ user_id: U1, secreto, pin: '4827' }), admin))
   assertEquals(r.status, 401)
   assertEquals(r.codigo, 'desconocido')
+})
+
+Deno.test('Cambiar un PIN existente exige el PIN actual: sin él o con uno malo se rechaza y el PIN no cambia', async () => {
+  const { admin } = crearAdmin()
+  const secreto = await vincular(admin, U1, '4827')
+  const sin = await leer(await pinDispositivo(post({ accion: 'registrar', pin: '7351', secreto }), admin, U1))
+  assertEquals(sin.status, 400)
+  assertEquals(sin.codigo, 'pin_actual_requerido')
+  const mal = await leer(await pinDispositivo(post({ accion: 'registrar', pin: '7351', pin_actual: '9999', secreto }), admin, U1))
+  assertEquals(mal.status, 401)
+  assertEquals(mal.error, 'PIN actual incorrecto. Te quedan 4 intentos.')
+  // el PIN original sigue funcionando
+  assertEquals((await leer(await cambiarUsuario(post({ user_id: U1, secreto, pin: '4827' }), admin))).status, 200)
+  // y con el PIN actual correcto sí se cambia
+  assertEquals((await leer(await pinDispositivo(post({ accion: 'registrar', pin: '7351', pin_actual: '4827', secreto }), admin, U1))).status, 200)
+  assertEquals((await leer(await cambiarUsuario(post({ user_id: U1, secreto, pin: '7351' }), admin))).status, 200)
+})
+
+Deno.test('Adivinar el PIN actual: al 5° fallo se bloquea 15 min (ni el PIN bueno sirve) y luego se recupera', async () => {
+  const { admin, tablas } = crearAdmin()
+  const secreto = await vincular(admin, U1, '4827')
+  const intento = (p: string, ahora?: Date) => pinDispositivo(post({ accion: 'registrar', pin: '7351', pin_actual: p, secreto }), admin, U1, ahora).then(leer)
+  for (let i = 0; i < 4; i++) assertEquals((await intento('9999')).status, 401)
+  const quinto = await intento('9999')
+  assertEquals(quinto.status, 429)
+  assertEquals((await intento('4827')).status, 429)
+  // pasado el bloqueo, el PIN correcto funciona y reinicia los contadores
+  const despues = new Date(Date.now() + 16 * 60000)
+  assertEquals((await intento('4827', despues)).status, 200)
+  assertEquals(tablas.pin_usuario[0].intentos_cambio, 0)
+  assertEquals(tablas.pin_usuario[0].bloqueado_cambio_hasta, null)
+})
+
+Deno.test('Restablecer PIN: solo un administrador; borra el PIN y los equipos de la persona', async () => {
+  const { admin, tablas } = crearAdmin()
+  await vincular(admin, U2, '4827')
+  assertEquals(tablas.pin_usuario.length, 1)
+  // un vendedor (U2) no puede
+  assertEquals((await leer(await pinDispositivo(post({ accion: 'restablecer', user_id: U2 }), admin, U2))).status, 403)
+  assertEquals(tablas.pin_usuario.length, 1)
+  // el administrador (U1) sí
+  assertEquals((await leer(await pinDispositivo(post({ accion: 'restablecer', user_id: U2 }), admin, U1))).status, 200)
+  assertEquals(tablas.pin_usuario.length, 0)
+  assertEquals(tablas.dispositivos_pin.length, 0)
+  assertEquals(tablas.logs.at(-1)?.accion, 'EDITAR')
+  // y la persona ya puede crear un PIN nuevo sin pedir el anterior
+  assertEquals((await leer(await pinDispositivo(post({ accion: 'registrar', pin: '7351' }), admin, U2))).status, 200)
+})
+
+Deno.test('Restablecer PIN rechaza usuarios mal formados', async () => {
+  const { admin } = crearAdmin()
+  assertEquals((await leer(await pinDispositivo(post({ accion: 'restablecer', user_id: 'x' }), admin, U1))).status, 400)
 })
