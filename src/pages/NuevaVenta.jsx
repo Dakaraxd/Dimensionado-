@@ -31,6 +31,8 @@ export default function NuevaVenta({ onNavegar }) {
   const [b0] = useState(() => leerBorrador(profile?.id))
   const [recuperada, setRecuperada] = useState(!!b0) // muestra el aviso de "orden recuperada"
   const [confirmandoDescarte, setConfirmandoDescarte] = useState(false)
+  const [generandoPdf, setGenerandoPdf] = useState(false)
+  const [errorPdf, setErrorPdf] = useState('')
   const [paso, setPaso] = useState(b0?.paso && b0.paso !== 'listo' ? b0.paso : 'cliente') // cliente | plancha | cortes | dia | boleta | listo
   const [cliente, setCliente] = useState({ rut: '', nombre: '', telefono: '', email: '', ...(b0?.cliente ?? {}) })
   const [plancha, setPlancha] = useState(b0?.plancha ?? null)
@@ -216,7 +218,7 @@ export default function NuevaVenta({ onNavegar }) {
   }
 
   function reiniciar() {
-    borrarBorrador(profile?.id); setRecuperada(false)
+    borrarBorrador(profile?.id); setRecuperada(false); setErrorPdf('')
     setPaso('cliente'); setCliente({ rut: '', nombre: '', telefono: '', email: '' }); setPlancha(null); setCortes(null); setBorradorPiezas(null)
     setCantidad('1'); setFecha(null); setServiciosSel([]); setNota(''); setBoleta(''); setError(''); setVenta(null)
     setBusquedaPlancha('')
@@ -308,7 +310,17 @@ export default function NuevaVenta({ onNavegar }) {
     }
 
     borrarBorrador(profile.id) // la orden ya quedó guardada: el borrador no sirve más
-    setVenta({ enEspera, boleta: boleta.trim(), cantidad: cantidadFinal, cortes: !!cortes, fecha: cortes ? fecha : null, cliente: cliente.nombre.trim(), plancha: nombrePlancha })
+    setVenta({
+      enEspera, boleta: boleta.trim(), cantidad: cantidadFinal, cortes: !!cortes, fecha: cortes ? fecha : null, cliente: cliente.nombre.trim(), plancha: nombrePlancha,
+      // Todo lo que necesita el PDF de la orden (se arma ahora porque el borrador ya se limpia)
+      datosPdf: {
+        enEspera, boleta: boleta.trim(), cantidad: cantidadFinal, plancha: nombrePlancha,
+        cliente: { nombre: cliente.nombre.trim(), rut: cliente.rut, telefono: cliente.telefono, email: cliente.email.trim() },
+        vendedor: profile.nombre, nota: nota.trim(), fecha: cortes ? fecha : null, creadoEn: orden.creado_en ?? new Date().toISOString(),
+        servicios: serviciosSel.length > 0 ? servicios.filter(s => serviciosSel.includes(s.id)).map(s => s.nombre) : [],
+        cortes: cortes ?? null,
+      },
+    })
     setPaso('listo')
     setGuardando(false)
   }
@@ -352,6 +364,22 @@ export default function NuevaVenta({ onNavegar }) {
     )
   }
 
+  // PDF de la orden terminada (carga diferida: jsPDF pesa y solo se usa aquí)
+  async function descargarPdf() {
+    if (!venta?.datosPdf || generandoPdf) return
+    setErrorPdf('')
+    setGenerandoPdf(true)
+    try {
+      const { generarPdfOrden, nombreArchivoOrden } = await import('../lib/pdfOrden')
+      const pdf = await generarPdfOrden(venta.datosPdf)
+      pdf.save(nombreArchivoOrden(venta.datosPdf))
+    } catch {
+      setErrorPdf('No se pudo generar el PDF. Intenta de nuevo.')
+    } finally {
+      setGenerandoPdf(false)
+    }
+  }
+
   // ── VENTA TERMINADA ──
   if (paso === 'listo' && venta) {
     return (
@@ -371,7 +399,11 @@ export default function NuevaVenta({ onNavegar }) {
           {venta.fecha && venta.fecha !== hoy && !venta.enEspera && (
             <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px' }}>📞 Recuerda avisarle al cliente el día de entrega.</p>
           )}
+          {errorPdf && <p role="alert" style={{ fontSize: '12px', color: 'var(--red)', marginBottom: '12px' }}>{errorPdf}</p>}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={descargarPdf} disabled={generandoPdf} style={{ ...btnPrimario, background: 'var(--green)', opacity: generandoPdf ? 0.6 : 1 }}>
+              {generandoPdf ? 'Generando PDF...' : '⬇ Descargar PDF de la orden'}
+            </button>
             <button onClick={reiniciar} style={btnPrimario}>+ Nueva orden</button>
             {venta.enEspera && <button onClick={() => onNavegar?.('ordenes')} style={btnSecundario}>Ir a Registro de salida</button>}
             {venta.cortes && <button onClick={() => onNavegar?.('reportes', 'dimensionado')} style={btnSecundario}>Ver historial de dimensionado</button>}
