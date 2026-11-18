@@ -86,6 +86,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   const focoPendiente = useRef(null) // casilla a enfocar cuando aparezca una fila nueva
   const [enfoque, setEnfoque] = useState(null) // casilla de medida en foco; `tecleado` = ya se escribió algo desde que entró
   const [aviso, setAviso] = useState(null) // piezas por debajo de la medida mínima de seguridad (pantalla de aviso)
+  const [bloqueadoPorSeguridad, setBloqueadoPorSeguridad] = useState(false) // se intentó optimizar con medidas bajo el mínimo
   const montado = useRef(true) // evita actualizar la pantalla si se salió del editor mientras se calculaba
   useEffect(() => {
     montado.current = true
@@ -93,6 +94,16 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   }, [])
 
   const piezasValidas = piezas.filter(p => p.cantidad && p.largo && p.ancho)
+
+  // El texto rojo de seguridad se calcula con las piezas de ahora: desaparece apenas ninguna queda bajo el mínimo
+  // (porque se corrigió la medida, se borró el dato, se eliminó la fila o se reinició)
+  const primeraBajoMinimo = piezas.findIndex(p => evaluarMedidaMinima(p.largo, p.ancho).invalida)
+  // Cuando ya no queda ninguna, el aviso se apaga del todo y solo vuelve tras un nuevo intento de optimizar
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (bloqueadoPorSeguridad && primeraBajoMinimo < 0) setBloqueadoPorSeguridad(false) }, [bloqueadoPorSeguridad, primeraBajoMinimo])
+  const textoSeguridad = bloqueadoPorSeguridad && primeraBajoMinimo >= 0
+    ? `La pieza ${primeraBajoMinimo + 1} está por debajo de la medida mínima de seguridad (${CORTE_MIN_LADO} × ${CORTE_MIN_LARGO} cm). Corrígela o elimínala para continuar.`
+    : ''
 
   function actualizarPieza(i, campo, valor) {
     const nuevas = [...piezas]
@@ -105,7 +116,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   }
 
   function eliminarFila(i) {
-    if (piezas.length <= 1) return
+    // Si es la única fila, no se puede quitar: se deja vacía (reiniciada)
+    if (piezas.length <= 1) { setPiezas([filaVacia()]); return }
     setPiezas(piezas.filter((_, idx) => idx !== i))
   }
 
@@ -171,11 +183,12 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       .filter(x => x.ev.invalida)
       .map(x => ({ fila: x.fila, largo: x.p.largo, ancho: x.p.ancho, campo: x.ev.largo ? 'largo' : 'ancho' }))
     if (bajoElMinimo.length > 0) {
-      // El texto en rojo se mantiene bajo la tabla y, además, se muestra la pantalla de aviso
-      setError(`La pieza ${bajoElMinimo[0].fila + 1} está por debajo de la medida mínima de seguridad (${CORTE_MIN_LADO} × ${CORTE_MIN_LARGO} cm). Corrígela o elimínala para continuar.`)
+      // Se muestra la pantalla de aviso y, bajo la tabla, el texto en rojo (que se actualiza solo mientras se corrige)
+      setBloqueadoPorSeguridad(true)
       setAviso(bajoElMinimo)
       return
     }
+    setBloqueadoPorSeguridad(false)
     if (piezasValidas.length === 0) { setError('Ingresa al menos una pieza con cantidad, largo y ancho'); return }
     const { w: W, h: H } = dimensiones
     for (const p of piezasValidas) {
@@ -491,7 +504,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           style={{ background: 'transparent', border: '1px dashed var(--border)', color: 'var(--text3)', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', marginTop: '10px', cursor: 'pointer', width: '100%' }}>
           + Agregar fila
         </button>
-        {error && <p style={{ fontSize: '12px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
+        {(textoSeguridad || error) && <p style={{ fontSize: '12px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{textoSeguridad || error}</p>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', gap: '10px', flexWrap: 'wrap' }}>
           {onVolver && <button onClick={onVolver} style={btnSecundario}>← Volver</button>}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginLeft: 'auto' }}>
