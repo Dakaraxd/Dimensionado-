@@ -125,15 +125,32 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   async function exportarPDF() {
     setExportando(true)
     try {
-      // Carga diferida: jsPDF + html2canvas pesan ~1 MB y solo se usan aquí
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+      // Carga diferida: jsPDF, autotable y html2canvas pesan ~1 MB y solo se usan aquí
+      const [{ default: jsPDF }, { default: autoTable }, { default: html2canvas }] = await Promise.all([
         import('jspdf'),
+        import('jspdf-autotable'),
         import('html2canvas')
       ])
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const pageW = 210
+      const pageH = 297
       const margin = 15
+      const anchoTabla = pageW - margin * 2
+      const rgb = (hex) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
+      const etiquetaPieza = (c, i) => c.nombre || `P${i + 1}` // la misma etiqueta que lleva el diagrama
+      const num = (n) => String(Math.round(n * 10) / 10)
+      const estiloTabla = {
+        margin: { left: margin, right: margin }, styles: { fontSize: 8, cellPadding: 1.8, textColor: [31, 41, 55] },
+        headStyles: { fillColor: [236, 238, 242], textColor: [107, 114, 128], fontStyle: 'bold' },
+      }
+      // Celda de color: el mismo color con que se dibuja la pieza en el diagrama
+      const pintarColor = (data) => {
+        if (data.section === 'body' && data.column.index === 0 && data.row.raw?.colorIdx !== undefined) {
+          data.cell.styles.fillColor = rgb(COLORES[data.row.raw.colorIdx % COLORES.length])
+        }
+      }
 
+      // ── Primera hoja: datos, resumen y detalle de todos los cortes ──
       pdf.setFontSize(16); pdf.setFont('helvetica', 'bold')
       pdf.setTextColor(31, 41, 55)
       pdf.text('Informe de Dimensionado', margin, 22)
@@ -158,50 +175,97 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       pdf.text(plancha ? `${plancha.plancha_nombre} ${plancha.plancha_medida}` : '—', pageW / 2 + 5, 50)
       pdf.text(`${dimensiones.w} x ${dimensiones.h} cm`, pageW / 2 + 5, 57)
 
-      let y = 76
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(31, 41, 55)
-      pdf.text('DIMENSIONES DE PIEZAS', margin, y); y += 8
-      pdf.setFillColor(236, 238, 242)
-      pdf.rect(margin, y - 4, pageW - margin * 2, 7, 'F')
-      pdf.setFontSize(8); pdf.setTextColor(107, 114, 128)
-      pdf.text('No.', margin + 2, y)
-      pdf.text('Cant.', margin + 14, y)
-      pdf.text('Nombre pieza', margin + 28, y)
-      pdf.text('Largo (cm)', margin + 80, y)
-      pdf.text('Ancho (cm)', margin + 115, y)
-      y += 6
+      let y = 80
+      // Cada título se pasa a la hoja siguiente si no queda espacio para empezar su tabla
+      const titulo = (texto) => {
+        if (y + 22 > pageH - 18) { pdf.addPage(); y = 20 }
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(31, 41, 55)
+        pdf.text(texto, margin, y)
+        y += 3
+      }
 
-      piezasValidas.forEach((p, i) => {
-        if (i % 2 === 0) { pdf.setFillColor(244, 245, 247); pdf.rect(margin, y - 4, pageW - margin * 2, 7, 'F') }
-        pdf.setFont('helvetica', 'normal'); pdf.setTextColor(31, 41, 55)
-        pdf.text(String(i + 1), margin + 2, y)
-        pdf.text(String(p.cantidad), margin + 14, y)
-        pdf.text(p.nombre || '—', margin + 28, y)
-        pdf.text(String(p.largo), margin + 80, y)
-        pdf.text(String(p.ancho), margin + 115, y)
-        y += 7
+      if (resultado) {
+        const totalPiezas = resultado.reduce((s, p) => s + p.cortes.length, 0)
+        titulo('RESUMEN')
+        autoTable(pdf, {
+          ...estiloTabla, startY: y, theme: 'plain', styles: { fontSize: 10, cellPadding: 1.4, textColor: [55, 65, 81] },
+          body: [
+            ['Tableros usados', String(resultado.length)],
+            ['Total de piezas a cortar', String(totalPiezas)],
+            ['Aprovechamiento promedio', `${eficienciaPromedio}%`],
+          ],
+          columnStyles: { 0: { cellWidth: 60, textColor: [107, 114, 128] }, 1: { fontStyle: 'bold', textColor: [31, 41, 55] } },
+        })
+        y = pdf.lastAutoTable.finalY + 8
+      }
+
+      titulo('PIEZAS SOLICITADAS')
+      autoTable(pdf, {
+        ...estiloTabla, startY: y, theme: 'striped',
+        head: [['No.', 'Cant.', 'Nombre pieza', 'Largo (cm)', 'Ancho (cm)']],
+        body: piezasValidas.map((p, i) => [i + 1, p.cantidad, p.nombre || '—', p.largo, p.ancho]),
+        columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 16 }, 3: { halign: 'right' }, 4: { halign: 'right' } },
       })
+      y = pdf.lastAutoTable.finalY + 8
 
+      if (resultado) {
+        titulo('DETALLE DE TODOS LOS CORTES')
+        const filas = []
+        resultado.forEach((tablero, pi) => tablero.cortes.forEach((c, ci) => {
+          filas.push(Object.assign(['', `Tablero ${pi + 1}`, etiquetaPieza(c, ci), c.largo ?? c.w, c.ancho ?? c.h, c.rotado ? 'Sí' : 'No', `${num(c.x)}, ${num(c.y)}`], { colorIdx: c.colorIdx }))
+        }))
+        autoTable(pdf, {
+          ...estiloTabla, styles: { ...estiloTabla.styles, cellPadding: 1.3 },
+          startY: y, theme: 'grid', tableWidth: anchoTabla,
+          head: [['', 'Tablero', 'Pieza', 'Largo (cm)', 'Ancho (cm)', 'Giro', 'Ubicación x, y (cm)']],
+          body: filas, didParseCell: pintarColor,
+          columnStyles: { 0: { cellWidth: 8 }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'center' } },
+        })
+      }
+
+      // ── Una hoja por tablero: diagrama en 2D y la tabla con los cortes de ese tablero ──
       if (resultado && diagramaRef.current) {
         const svgs = diagramaRef.current.querySelectorAll('.diagrama-wrap')
         for (let pi = 0; pi < resultado.length; pi++) {
+          const tablero = resultado[pi]
           pdf.addPage()
           pdf.setFontSize(13); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(31, 41, 55)
           pdf.text(`Plancha ${pi + 1} de ${resultado.length}`, margin, 18)
           pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(107, 114, 128)
-          pdf.text(`${resultado[pi].cortes.length} piezas · Cliente: ${cliente.nombre}`, margin, 25)
-          pdf.setDrawColor(227, 6, 19); pdf.line(margin, 28, 195, 28)
+          pdf.text(`${tablero.cortes.length} piezas · Cliente: ${cliente.nombre}`, margin, 25)
+          const retazo = sobrantes[pi]?.area > 0 ? ` · Retazo reutilizable: ${Math.round(sobrantes[pi].w)} x ${Math.round(sobrantes[pi].h)} cm` : ''
+          pdf.text(`Aprovechamiento: ${eficiencia[pi]}%${retazo}`, margin, 30)
+          pdf.setDrawColor(227, 6, 19); pdf.setLineWidth(0.4); pdf.line(margin, 33, 195, 33)
 
+          let finDiagrama = 36
           if (svgs[pi]) {
             const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })
             const img = canvas.toDataURL('image/png')
-            const dispW = 180, dispH = 240
+            const dispW = 180, dispH = 118 // el diagrama deja lugar a la tabla de cortes debajo
             const ratio = dimensiones.h / dimensiones.w
             let iW = dispW, iH = iW * ratio
             if (iH > dispH) { iH = dispH; iW = iH / ratio }
-            pdf.addImage(img, 'PNG', margin + (dispW - iW) / 2, 33, iW, iH)
+            pdf.addImage(img, 'PNG', margin + (dispW - iW) / 2, 38, iW, iH)
+            finDiagrama = 38 + iH
           }
+
+          autoTable(pdf, {
+            ...estiloTabla, styles: { ...estiloTabla.styles, fontSize: 7.5, cellPadding: 1.1 }, // compacta: caben ~20 piezas en la hoja
+            startY: finDiagrama + 5, theme: 'grid', tableWidth: anchoTabla,
+            head: [['', 'Pieza', 'Largo (cm)', 'Ancho (cm)', 'Giro', 'Ubicación x, y (cm)']],
+            body: tablero.cortes.map((c, ci) => Object.assign(['', etiquetaPieza(c, ci), c.largo ?? c.w, c.ancho ?? c.h, c.rotado ? 'Sí' : 'No', `${num(c.x)}, ${num(c.y)}`], { colorIdx: c.colorIdx })),
+            didParseCell: pintarColor,
+            columnStyles: { 0: { cellWidth: 8 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'center' } },
+          })
         }
+      }
+
+      // Numeración de hojas
+      const total = pdf.getNumberOfPages()
+      for (let i = 1; i <= total; i++) {
+        pdf.setPage(i)
+        pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(150, 150, 150)
+        pdf.text(`Hoja ${i} de ${total}`, pageW / 2, pageH - 8, { align: 'center' })
       }
 
       pdf.save(`dimensionado_${(cliente.nombre ?? '').replace(/\s+/g, '_') || 'cliente'}.pdf`)
