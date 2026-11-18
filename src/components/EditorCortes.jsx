@@ -1,6 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { calcularDistribucion, analizarSobrante, KERF, PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import { maskRut } from '../lib/rut'
+import CalculandoCortes from './CalculandoCortes'
+
+// La animación de la sierra se ve como mínimo este tiempo (salvo que el equipo pida "reducir movimiento")
+const MIN_ANIMACION_MS = 1200
+const esperar = (ms) => new Promise(resolver => setTimeout(resolver, ms))
 
 const COLORES = ['#4a9eff', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#22d3ee', '#fb923c', '#86efac', '#f472b6', '#67e8f9']
 const FILAS_INICIALES = 8
@@ -75,7 +80,13 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   const [permitirGiro, setPermitirGiro] = useState(true)
   const [error, setError] = useState('')
   const [exportando, setExportando] = useState(false)
+  const [calculando, setCalculando] = useState(false)
   const diagramaRef = useRef(null)
+  const montado = useRef(true) // evita actualizar la pantalla si se salió del editor mientras se calculaba
+  useEffect(() => {
+    montado.current = true
+    return () => { montado.current = false }
+  }, [])
 
   const piezasValidas = piezas.filter(p => p.cantidad && p.largo && p.ancho)
 
@@ -94,7 +105,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     setPiezas(piezas.filter((_, idx) => idx !== i))
   }
 
-  function calcular() {
+  async function calcular() {
+    if (calculando) return
     setError('')
     if (piezasValidas.length === 0) { setError('Ingresa al menos una pieza con cantidad, largo y ancho'); return }
     const { w: W, h: H } = dimensiones
@@ -116,12 +128,31 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       cantidad: parseInt(p.cantidad),
       nombre: p.nombre
     }))
-    const { planchas, noColocadas } = calcularDistribucion(cortesValidos, W, H, { permitirGiro })
-    if (noColocadas.length > 0) {
-      setError(`${noColocadas.length} pieza(s) no pudieron ubicarse en ningún tablero. Revisa las medidas.`)
+
+    // Se muestra la sierra y se deja que la pantalla la dibuje ANTES de empezar el cálculo,
+    // que puede ser pesado y bloquear la página unos instantes.
+    setCalculando(true)
+    await new Promise(resolver => requestAnimationFrame(() => setTimeout(resolver, 30)))
+    const inicio = performance.now()
+    let calculo = null
+    try {
+      calculo = calcularDistribucion(cortesValidos, W, H, { permitirGiro })
+    } catch (e) {
+      console.error('No se pudo calcular la distribución:', e)
+    }
+    // Mínimo de animación, para que se alcance a ver; no se fuerza si el equipo pidió menos movimiento
+    const reducirMovimiento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const falta = reducirMovimiento ? 0 : MIN_ANIMACION_MS - (performance.now() - inicio)
+    if (falta > 0) await esperar(falta)
+    if (!montado.current) return
+
+    setCalculando(false)
+    if (!calculo) { setError('No se pudo calcular la distribución. Revisa las medidas e inténtalo de nuevo.'); return }
+    if (calculo.noColocadas.length > 0) {
+      setError(`${calculo.noColocadas.length} pieza(s) no pudieron ubicarse en ningún tablero. Revisa las medidas.`)
       return
     }
-    setResultado(planchas)
+    setResultado(calculo.planchas)
     setVista('resultado')
   }
 
@@ -378,9 +409,10 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
                 No hacer corte
               </button>
             )}
-            <button onClick={calcular} style={btnPrimario}>Optimizar →</button>
+            <button onClick={calcular} disabled={calculando} style={{ ...btnPrimario, opacity: calculando ? 0.7 : 1 }}>Optimizar →</button>
           </div>
         </div>
+        {calculando && <CalculandoCortes />}
       </div>
     )
   }
