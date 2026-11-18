@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
-import { hoyChile, aYMD } from '../lib/fechas'
+import { hoyChile, aYMD, horaChile, horaMinutosChile } from '../lib/fechas'
+import { diaSugerido, HORA_CORTE_DEL_DIA } from '../lib/agenda'
+import { leerBorrador, guardarBorrador, borrarBorrador } from '../lib/borrador'
 import { formatRut, validarRut } from '../lib/rut'
 import EditorCortes from '../components/EditorCortes'
 
@@ -25,16 +27,20 @@ export default function NuevaVenta({ onNavegar }) {
   const { profile } = useAuth()
   const hoy = hoyChile()
 
-  const [paso, setPaso] = useState('cliente') // cliente | plancha | cortes | dia | boleta | listo
-  const [cliente, setCliente] = useState({ rut: '', nombre: '', telefono: '', email: '' })
-  const [plancha, setPlancha] = useState(null)
-  const [cortes, setCortes] = useState(null) // { piezas, dims, planchas } cuando se hacen cortes
-  const [cantidad, setCantidad] = useState('1') // solo para ventas sin cortes
-  const [fecha, setFecha] = useState(null)
+  // Avance guardado de una orden a medio hacer (se recupera al volver a esta pantalla)
+  const [b0] = useState(() => leerBorrador(profile?.id))
+  const [recuperada, setRecuperada] = useState(!!b0) // muestra el aviso de "orden recuperada"
+  const [paso, setPaso] = useState(b0?.paso && b0.paso !== 'listo' ? b0.paso : 'cliente') // cliente | plancha | cortes | dia | boleta | listo
+  const [cliente, setCliente] = useState({ rut: '', nombre: '', telefono: '', email: '', ...(b0?.cliente ?? {}) })
+  const [plancha, setPlancha] = useState(b0?.plancha ?? null)
+  const [cortes, setCortes] = useState(b0?.cortes ?? null) // { piezas, dims, planchas } cuando se hacen cortes
+  const [borradorPiezas, setBorradorPiezas] = useState(b0?.borradorPiezas ?? null) // piezas escritas aún sin optimizar
+  const [cantidad, setCantidad] = useState(b0?.cantidad ?? '1') // solo para ventas sin cortes
+  const [fecha, setFecha] = useState(b0?.fecha ?? null)
   const [servicios, setServicios] = useState([])
-  const [serviciosSel, setServiciosSel] = useState([])
-  const [nota, setNota] = useState('')
-  const [boleta, setBoleta] = useState('')
+  const [serviciosSel, setServiciosSel] = useState(b0?.serviciosSel ?? [])
+  const [nota, setNota] = useState(b0?.nota ?? '')
+  const [boleta, setBoleta] = useState(b0?.boleta ?? '')
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [venta, setVenta] = useState(null) // resumen de la venta ya aprobada
@@ -64,7 +70,13 @@ export default function NuevaVenta({ onNavegar }) {
         supabase.from('proyectos_dimensionado').select('cliente_nombre, cliente_rut, cliente_telefono, cliente_email')
           .order('creado_en', { ascending: false }).limit(300),
       ])
-      setPlanchasStock(stock.data ?? [])
+      const frescas = stock.data ?? []
+      setPlanchasStock(frescas)
+      // Una plancha recuperada del borrador se actualiza con el stock de ahora (o se descarta si ya no hay)
+      setPlancha(prev => prev ? (frescas.find(p => p.tipo_plancha_id === prev.tipo_plancha_id) ?? null) : prev)
+      // si ya no existe, se vuelve al paso de elegir plancha
+      const sigue = !b0?.plancha || frescas.some(p => p.tipo_plancha_id === b0.plancha.tipo_plancha_id)
+      if (!sigue) setPaso(p => (p === 'cortes' || p === 'dia' || p === 'boleta') ? 'plancha' : p)
       setServicios(serv.data ?? [])
       // Clientes ya atendidos, sin repetir RUT (lo más reciente primero)
       const vistos = new Map()
@@ -77,6 +89,7 @@ export default function NuevaVenta({ onNavegar }) {
       setClientesPrevios([...vistos.values()])
     }
     cargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- b0 (borrador inicial) no cambia: es el estado de arranque
   }, [])
 
   // ── Verificación del taller: ¿hay dimensionadores asignados? ──
@@ -105,7 +118,10 @@ export default function NuevaVenta({ onNavegar }) {
       if (!activo) return
       const planificados = (data ?? []).filter(d => d.cuota)
       setDias(planificados)
-      setFecha(actual => actual ?? planificados.find(d => d.cupo_disponible >= tableros)?.fecha ?? null)
+      // Se conserva el día elegido si sigue valido; si no, se marca el sugerido (desde las 12:00, el día siguiente)
+      setFecha(actual => planificados.some(d => d.fecha === actual && d.cupo_disponible >= tableros)
+        ? actual
+        : diaSugerido(planificados, tableros, hoy, horaChile()))
       setCargandoDias(false)
     }
     cargarDias()
@@ -128,6 +144,26 @@ export default function NuevaVenta({ onNavegar }) {
 
   function ir(destino) { setError(''); setPaso(destino) }
 
+  // Guarda el avance en todo momento (por usuario y solo por hoy)
+  useEffect(() => {
+    if (paso === 'listo' || !profile?.id) return
+    const hayAlgo = cliente.nombre || cliente.rut || cliente.telefono || cliente.email || plancha || cortes || borradorPiezas
+    if (!hayAlgo) { borrarBorrador(profile.id); return }
+    guardarBorrador(profile.id, { paso, cliente, plancha, cortes, borradorPiezas, cantidad, fecha, serviciosSel, nota, boleta })
+  }, [profile?.id, paso, cliente, plancha, cortes, borradorPiezas, cantidad, fecha, serviciosSel, nota, boleta])
+
+  // Piezas escritas en el editor (se guardan solo las filas con algo escrito)
+  const guardarPiezas = useCallback((ps) => {
+    const llenas = ps.filter(p => p.cantidad || p.nombre || p.largo || p.ancho)
+    setBorradorPiezas(llenas.length ? llenas : null)
+  }, [])
+
+  function descartarBorrador() {
+    if (!confirm('¿Descartar la orden en curso y empezar de nuevo? Se borrarán los datos ingresados.')) return
+    borrarBorrador(profile?.id)
+    reiniciar()
+  }
+
   function elegirCliente(c) {
     setCliente({ nombre: c.nombre ?? '', rut: c.rut ?? '', telefono: c.telefono ?? '', email: c.email ?? '' })
     setMostrarSugerencias(false)
@@ -135,13 +171,13 @@ export default function NuevaVenta({ onNavegar }) {
 
   function siguienteCliente() {
     if (!cliente.nombre.trim() || !cliente.rut) { setError('Nombre y RUT son obligatorios'); return }
-    if (cliente.email.trim() && !/^[^s@]+@[^s@]+.[^s@]{2,}$/.test(cliente.email.trim())) { setError('El correo del cliente no es válido (ej: nombre@correo.cl)'); return }
+    if (cliente.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cliente.email.trim())) { setError('El correo del cliente no es válido (ej: nombre@correo.cl)'); return }
     if (!validarRut(cliente.rut)) { setError('El RUT ingresado no es válido (dígito verificador incorrecto)'); return }
     ir('plancha')
   }
 
   function elegirPlancha(p) {
-    if (plancha?.tipo_plancha_id !== p.tipo_plancha_id) { setCortes(null); setFecha(null) }
+    if (plancha?.tipo_plancha_id !== p.tipo_plancha_id) { setCortes(null); setBorradorPiezas(null); setFecha(null) }
     setPlancha(p)
   }
 
@@ -178,7 +214,8 @@ export default function NuevaVenta({ onNavegar }) {
   }
 
   function reiniciar() {
-    setPaso('cliente'); setCliente({ rut: '', nombre: '', telefono: '', email: '' }); setPlancha(null); setCortes(null)
+    borrarBorrador(profile?.id); setRecuperada(false)
+    setPaso('cliente'); setCliente({ rut: '', nombre: '', telefono: '', email: '' }); setPlancha(null); setCortes(null); setBorradorPiezas(null)
     setCantidad('1'); setFecha(null); setServiciosSel([]); setNota(''); setBoleta(''); setError(''); setVenta(null)
     setBusquedaPlancha('')
   }
@@ -268,6 +305,7 @@ export default function NuevaVenta({ onNavegar }) {
       await registrarLog({ accion: 'CREAR', entidad: 'proyecto', detalle: { cliente: cliente.nombre.trim(), plancha: nombrePlancha } }, profile)
     }
 
+    borrarBorrador(profile.id) // la orden ya quedó guardada: el borrador no sirve más
     setVenta({ enEspera, boleta: boleta.trim(), cantidad: cantidadFinal, cortes: !!cortes, fecha: cortes ? fecha : null, cliente: cliente.nombre.trim(), plancha: nombrePlancha })
     setPaso('listo')
     setGuardando(false)
@@ -326,7 +364,7 @@ export default function NuevaVenta({ onNavegar }) {
             {venta.fecha && <p>📅 Taller: {formatoDia(venta.fecha)}</p>}
           </div>
           {venta.enEspera && (
-            <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px', lineHeight: 1.5 }}>⏸ El stock aún no se descuenta. Cuando el cliente pague, ingresa la boleta en <strong>Registro de salida</strong> para aprobarla.</p>
+            <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px', lineHeight: 1.5 }}>⏸ El stock aún no se descuenta. Cuando el cliente pague, ingresa la boleta en <strong>Registro de salida</strong> para aprobarla. <strong>Si no se paga hoy, se cancela automáticamente a las 00:00.</strong></p>
           )}
           {venta.fecha && venta.fecha !== hoy && !venta.enEspera && (
             <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '16px' }}>📞 Recuerda avisarle al cliente el día de entrega.</p>
@@ -348,6 +386,16 @@ export default function NuevaVenta({ onNavegar }) {
         <h2 style={{ fontSize: '20px', fontWeight: '600' }}>Nueva orden</h2>
         <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Registra la orden completa: cliente, plancha, cortes, día de taller y boleta</p>
       </div>
+
+      {recuperada && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', background: 'var(--amber-soft)', border: '1px solid rgba(180,83,9,0.3)', borderRadius: '12px', padding: '10px 16px', marginBottom: '16px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--amber)', lineHeight: 1.5 }}>💾 <strong>Recuperamos tu orden en curso.</strong> Puedes seguir donde la dejaste.</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setRecuperada(false)} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px' }}>Entendido</button>
+            <button onClick={descartarBorrador} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px', color: 'var(--red)' }}>Descartar y empezar de nuevo</button>
+          </div>
+        </div>
+      )}
 
       {/* Stepper */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '26px', overflowX: 'auto', paddingBottom: '4px' }}>
@@ -481,7 +529,8 @@ export default function NuevaVenta({ onNavegar }) {
             key={plancha.tipo_plancha_id}
             cliente={cliente}
             plancha={plancha}
-            inicial={cortes}
+            inicial={cortes ?? (borradorPiezas ? { piezas: borradorPiezas } : null)}
+            onCambioPiezas={guardarPiezas}
             onConfirmar={confirmarCortes}
             onSinCortes={sinCortes}
             onVolver={() => ir('plancha')}
@@ -502,6 +551,12 @@ export default function NuevaVenta({ onNavegar }) {
             </div>
           ) : (
             <>
+              <p style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.5, marginBottom: '12px' }}>
+                🕐 Son las <strong>{horaMinutosChile()}</strong> (hora de Chile). {horaChile() >= HORA_CORTE_DEL_DIA
+                  ? <>Pasadas las {HORA_CORTE_DEL_DIA}:00 se marca el día siguiente; si quieres hoy y hay cupo, puedes elegirlo.</>
+                  : <>Hasta las {HORA_CORTE_DEL_DIA}:00 se marca hoy; puedes elegir otro día.</>}
+                {' '}Si la orden queda en espera sin pagar, se cancela a las 00:00.
+              </p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {dias.map(d => {
                   const cabe = d.cupo_disponible >= tableros
@@ -539,7 +594,7 @@ export default function NuevaVenta({ onNavegar }) {
       {/* 5 · BOLETA */}
       {paso === 'boleta' && (
         <div style={card}>
-          {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock. Si el cliente aún no paga, usa “Dejar en espera”.')}
+          {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock. Si el cliente aún no paga, usa “Dejar en espera” (si no paga hoy, la orden se cancela sola a las 00:00).')}
 
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
             <p>👤 <strong>{cliente.nombre}</strong> · {cliente.rut}{cliente.telefono ? ` · ${cliente.telefono}` : ''}{cliente.email ? ` · ${cliente.email}` : ''}</p>
