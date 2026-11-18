@@ -4,7 +4,18 @@ import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import EditorCortes from '../components/EditorCortes'
-import { PERIODOS, TZ, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
+import { PERIODOS_REPORTES, TZ, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
+import { traerTodo } from '../lib/paginar'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
+
+const LIMITE_FILAS = 200 // órdenes que se dibujan de una vez en la lista (el resumen siempre usa todas)
+
+const claveMes = (iso) => diaDe(iso).slice(0, 7) // 'YYYY-MM'
+const nombreMes = (clave, largo = false) => {
+  const t = new Date(clave + '-01T12:00:00').toLocaleDateString('es-CL', largo ? { month: 'long', year: 'numeric' } : { month: 'short', year: '2-digit' })
+  return largo ? t.charAt(0).toUpperCase() + t.slice(1) : t // "Diciembre de 2024"
+}
+const variacionPct = (actual, anterior) => (anterior > 0 ? Math.round(((actual - anterior) / anterior) * 100) : null)
 
 const card = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px' }
 const chip = (activo) => ({
@@ -48,6 +59,10 @@ export default function HistorialVentas() {
   const [verAnuladas, setVerAnuladas] = useState(false)
   const [abierta, setAbierta] = useState(null)
   const [visor, setVisor] = useState(null)
+  const [limite, setLimite] = useState(LIMITE_FILAS)
+  const [verDetalle, setVerDetalle] = useState(false) // en períodos de 1 o 2 años el detalle día por día empieza oculto
+  const [exportando, setExportando] = useState(false)
+  const esAnual = periodo === 'anio' || periodo === 'dos_anios'
 
   const rango = limites(periodo, desde, hasta)
 
@@ -58,8 +73,9 @@ export default function HistorialVentas() {
     const ini = rango.desde.toISOString()
     const fin = rango.hasta.toISOString()
     const antes = new Date(rango.desde.getTime() - 86400000).toISOString()
+    // Se piden por páginas: Supabase corta en 1.000 filas y un año de ventas puede superarlas
     const [ords, proys] = await Promise.all([
-      supabase.from('ordenes').select(`
+      traerTodo((a, b) => supabase.from('ordenes').select(`
           id, cantidad, estado, nro_boleta, nota, telefono_cliente, cliente_email, cliente_nombre, cliente_rut,
           creado_en, aprobado_en, fecha_agendada,
           vendedor:profiles!vendedor_id(nombre),
@@ -70,9 +86,11 @@ export default function HistorialVentas() {
         .in('estado', ['aprobada', 'cancelada'])
         .not('nro_boleta', 'is', null)
         .gte('aprobado_en', ini).lt('aprobado_en', fin)
-        .order('aprobado_en', { ascending: false }),
-      supabase.from('proyectos_dimensionado').select('orden_id')
-        .not('orden_id', 'is', null).gte('creado_en', antes).lt('creado_en', fin),
+        .order('aprobado_en', { ascending: false }).order('id')
+        .range(a, b)),
+      traerTodo((a, b) => supabase.from('proyectos_dimensionado').select('orden_id')
+        .not('orden_id', 'is', null).gte('creado_en', antes).lt('creado_en', fin)
+        .order('id').range(a, b)),
     ])
     if (ords.error) {
       setError('No se pudo cargar el historial de ventas')
@@ -80,6 +98,7 @@ export default function HistorialVentas() {
     } else {
       setOrdenes(ords.data ?? [])
     }
+    // Si fallara solo la lista de órdenes con cortes, las ventas se muestran igual
     setConCortes(new Set((proys.data ?? []).map(p => p.orden_id)))
     setAbierta(null)
     setLoading(false)
@@ -119,6 +138,38 @@ export default function HistorialVentas() {
     }
   }, [vigentes, anuladas, conCortes])
 
+  // Resumen mes a mes (solo en períodos de 1 o 2 años): incluye los meses sin ventas
+  const mensual = useMemo(() => {
+    const r = limites(periodo, desde, hasta)
+    if (!esAnual || !r) return { meses: [], porTipo: [] }
+    const mapa = new Map()
+    for (let d = new Date(r.desde); d < r.hasta; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      mapa.set(k, { clave: k, etiqueta: nombreMes(k), ordenes: 0, planchas: 0, anuladas: 0 })
+    }
+    const tipos = new Map()
+    base.forEach(o => {
+      const m = mapa.get(claveMes(o.aprobado_en))
+      if (!m) return
+      if (o.estado === 'aprobada') {
+        m.ordenes += 1
+        m.planchas += o.cantidad
+        const t = `${o.tipo?.nombre ?? 'Sin tipo'} ${o.tipo?.medida ?? ''}`.trim()
+        tipos.set(t, (tipos.get(t) ?? 0) + o.cantidad)
+      } else m.anuladas += 1
+    })
+    return { meses: [...mapa.values()], porTipo: [...tipos.entries()].sort((a, b) => b[1] - a[1]) }
+  }, [esAnual, periodo, desde, hasta, base])
+
+  // En 24 meses se compara el último año contra el año anterior
+  const comparacion = useMemo(() => {
+    if (periodo !== 'dos_anios' || mensual.meses.length !== 24) return null
+    const suma = (arr) => arr.reduce((s, m) => s + m.planchas, 0)
+    const anterior = suma(mensual.meses.slice(0, 12))
+    const actual = suma(mensual.meses.slice(12))
+    return { anterior, actual, pct: variacionPct(actual, anterior) }
+  }, [periodo, mensual])
+
   // Lista: además de lo anterior, búsqueda y filtro de cortes
   const q = busqueda.trim().toLowerCase()
   const lista = base.filter(o =>
@@ -133,7 +184,9 @@ export default function HistorialVentas() {
       (o.vendedor?.nombre ?? '').toLowerCase().includes(q))
   )
 
-  const porDia = lista.reduce((acc, o) => {
+  // En períodos largos solo se dibujan las primeras filas; "Mostrar más" agrega otras
+  const listaVisible = lista.slice(0, limite)
+  const porDia = listaVisible.reduce((acc, o) => {
     const k = diaDe(o.aprobado_en)
     if (!acc[k]) acc[k] = []
     acc[k].push(o)
@@ -152,6 +205,68 @@ export default function HistorialVentas() {
       detalle: { orden_id: o.id, nro_boleta: o.nro_boleta, cantidad: o.cantidad, plancha: `${o.tipo?.nombre ?? ''} ${o.tipo?.medida ?? ''}`.trim() }
     }, profile)
     setOrdenes(prev => prev.map(x => (x.id === o.id ? { ...x, estado: 'cancelada' } : x)))
+  }
+
+  // Resumen mes a mes de un año o dos, en PDF
+  async function exportarResumenPDF() {
+    if (!mensual.meses.length) return
+    setExportando(true)
+    try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const margen = 14
+      const meses = mensual.meses
+      const etiquetaPeriodo = periodo === 'anio' ? 'Últimos 12 meses' : 'Últimos 24 meses'
+      const totalPlanchas = meses.reduce((s, m) => s + m.planchas, 0)
+      const totalOrdenes = meses.reduce((s, m) => s + m.ordenes, 0)
+      const totalAnuladas = meses.reduce((s, m) => s + m.anuladas, 0)
+
+      pdf.setFont(undefined, 'bold'); pdf.setFontSize(18); pdf.setTextColor(30, 32, 39)
+      pdf.text('Resumen de ventas', margen, 20)
+      pdf.setFont(undefined, 'normal'); pdf.setFontSize(11); pdf.setTextColor(80, 80, 80)
+      pdf.text(`${etiquetaPeriodo}: ${nombreMes(meses[0].clave, true)} a ${nombreMes(meses[meses.length - 1].clave, true)}`, margen, 27)
+      pdf.setFontSize(9); pdf.setTextColor(130, 130, 130)
+      pdf.text(`${filtroVendedor ? `Vendedor: ${filtroVendedor} — ` : ''}Generado el ${new Date().toLocaleString('es-CL')} — Dimensionado, Sodimac`, margen, 33)
+
+      const filasResumen = [
+        ['Planchas vendidas', String(totalPlanchas)],
+        ['Órdenes con boleta', String(totalOrdenes)],
+        ['Ventas anuladas', String(totalAnuladas)],
+      ]
+      if (comparacion) {
+        filasResumen.push(['Últimos 12 meses', `${comparacion.actual} planchas`])
+        filasResumen.push(['12 meses anteriores', `${comparacion.anterior} planchas${comparacion.pct === null ? '' : ` (${comparacion.pct >= 0 ? '+' : ''}${comparacion.pct}%)`}`])
+      }
+      autoTable(pdf, {
+        startY: 38, margin: { left: margen, right: margen }, body: filasResumen, theme: 'plain',
+        styles: { fontSize: 11, cellPadding: 1.5 },
+        columnStyles: { 0: { textColor: [100, 100, 100] }, 1: { fontStyle: 'bold', textColor: [30, 32, 39] } },
+      })
+
+      autoTable(pdf, {
+        startY: pdf.lastAutoTable.finalY + 8, margin: { left: margen, right: margen },
+        head: [['Mes', 'Órdenes', 'Planchas', 'Anuladas']],
+        body: meses.map(m => [nombreMes(m.clave, true), m.ordenes, m.planchas, m.anuladas]),
+        foot: [['Total', totalOrdenes, totalPlanchas, totalAnuladas]],
+        headStyles: { fillColor: [227, 6, 19] }, footStyles: { fillColor: [236, 238, 242], textColor: [30, 32, 39] },
+        styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      })
+
+      if (mensual.porTipo.length) {
+        autoTable(pdf, {
+          startY: pdf.lastAutoTable.finalY + 8, margin: { left: margen, right: margen },
+          head: [['Plancha', 'Planchas', '% del total']],
+          body: mensual.porTipo.slice(0, 15).map(([nombre, n]) => [nombre, n, totalPlanchas ? `${Math.round((n / totalPlanchas) * 100)}%` : '—']),
+          headStyles: { fillColor: [227, 6, 19] }, styles: { fontSize: 9 },
+          columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+        })
+      }
+      pdf.save(`resumen_ventas_${periodo === 'anio' ? '12' : '24'}_meses.pdf`)
+    } catch {
+      setError('No se pudo generar el PDF')
+    } finally {
+      setExportando(false)
+    }
   }
 
   async function verCortes(o) {
@@ -189,7 +304,10 @@ export default function HistorialVentas() {
 
       {/* Período */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-        {PERIODOS.map(p => <button key={p.key} style={chip(periodo === p.key)} onClick={() => setPeriodo(p.key)}>{p.label}</button>)}
+        {PERIODOS_REPORTES.map(p => (
+          <button key={p.key} style={chip(periodo === p.key)}
+            onClick={() => { setPeriodo(p.key); setLimite(LIMITE_FILAS); setVerDetalle(false) }}>{p.label}</button>
+        ))}
       </div>
       {periodo === 'rango' && (
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
@@ -227,6 +345,112 @@ export default function HistorialVentas() {
               detalle={anuladas.length ? `${resumen.planchasAnuladas} planchas devueltas al stock` : 'ninguna'} />
           </div>
 
+          {/* En 1 y 2 años el filtro por vendedor queda siempre visible, porque cambia el resumen */}
+          {esAnual && vendedores.length > 1 && (
+            <div style={{ marginBottom: '14px' }}>
+              <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)} style={{ width: 'auto', minWidth: '190px' }}>
+                <option value="">Todos los vendedores</option>
+                {vendedores.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Resumen mes a mes: solo en períodos de 1 y 2 años */}
+          {esAnual && (
+            <div style={{ ...card, padding: '18px 20px', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                <p style={{ fontSize: '15px', fontWeight: 600 }}>Ventas mes a mes</p>
+                <button onClick={exportarResumenPDF} disabled={exportando || !mensual.meses.length}
+                  style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: 500, opacity: exportando ? 0.7 : 1 }}>
+                  {exportando ? 'Generando...' : '⬇ Exportar resumen PDF'}
+                </button>
+              </div>
+
+              {comparacion && (
+                <p style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '10px' }}>
+                  Últimos 12 meses: <strong>{comparacion.actual}</strong> planchas · 12 meses anteriores: <strong>{comparacion.anterior}</strong>
+                  {comparacion.pct !== null && (
+                    <strong style={{ color: comparacion.pct >= 0 ? 'var(--green)' : 'var(--red)', marginLeft: '8px' }}>
+                      {comparacion.pct >= 0 ? '▲' : '▼'} {Math.abs(comparacion.pct)}%
+                    </strong>
+                  )}
+                </p>
+              )}
+
+              <div style={{ width: '100%', height: 230, marginTop: '8px' }}>
+                <ResponsiveContainer>
+                  <BarChart data={mensual.meses} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="etiqueta" tick={{ fontSize: 10, fill: 'var(--text3)' }} interval={mensual.meses.length > 12 ? 1 : 0} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--text3)' }} allowDecimals={false} />
+                    <Tooltip formatter={(v) => [`${v} planchas`, 'Vendidas']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                    <Bar dataKey="planchas" radius={[4, 4, 0, 0]}>
+                      {mensual.meses.map((m, i) => (
+                        <Cell key={m.clave} fill={comparacion && i < 12 ? 'rgba(227,6,19,0.35)' : '#e30613'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {comparacion && <p style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>Las barras claras son el año anterior; las rojas, los últimos 12 meses.</p>}
+
+              <div style={{ overflowX: 'auto', marginTop: '14px' }}>
+                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg3)' }}>
+                      {['Mes', 'Órdenes', 'Planchas', 'Anuladas'].map((h, i) => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mensual.meses.map(m => (
+                      <tr key={m.clave} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ padding: '7px 12px' }}>{nombreMes(m.clave, true)}</td>
+                        <td style={{ padding: '7px 12px', textAlign: 'right' }}>{m.ordenes}</td>
+                        <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>{m.planchas}</td>
+                        <td style={{ padding: '7px 12px', textAlign: 'right', color: m.anuladas ? 'var(--red)' : 'var(--text3)' }}>{m.anuladas}</td>
+                      </tr>
+                    ))}
+                    <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg3)', fontWeight: 700 }}>
+                      <td style={{ padding: '8px 12px' }}>Total</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{mensual.meses.reduce((s, m) => s + m.ordenes, 0)}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{mensual.meses.reduce((s, m) => s + m.planchas, 0)}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{mensual.meses.reduce((s, m) => s + m.anuladas, 0)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {mensual.porTipo.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Planchas más vendidas del período</p>
+                  {mensual.porTipo.slice(0, 8).map(([nombre, n]) => {
+                    const total = mensual.meses.reduce((s, m) => s + m.planchas, 0)
+                    const pct = total ? Math.round((n / total) * 100) : 0
+                    return (
+                      <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', marginBottom: '5px' }}>
+                        <span style={{ flex: '0 0 170px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombre}</span>
+                        <span style={{ flex: 1, background: 'var(--bg3)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
+                          <span style={{ display: 'block', height: '8px', width: `${pct}%`, background: 'var(--primary)' }} />
+                        </span>
+                        <span style={{ flex: '0 0 78px', textAlign: 'right', color: 'var(--text2)' }}>{n} ({pct}%)</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {esAnual && (
+            <button onClick={() => setVerDetalle(v => !v)}
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text1)', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: 500, marginBottom: '16px' }}>
+              {verDetalle ? '▲ Ocultar detalle de órdenes' : `▼ Ver detalle de órdenes (${vigentes.length})`}
+            </button>
+          )}
+
+          {(!esAnual || verDetalle) && (<>
           {/* Filtros */}
           <div style={{ marginBottom: '10px' }}>
             <input type="text" placeholder="🔍 Buscar por boleta, cliente, RUT, plancha o vendedor..."
@@ -236,7 +460,7 @@ export default function HistorialVentas() {
             <button style={chip(filtroCortes === 'todas')} onClick={() => setFiltroCortes('todas')}>Todas</button>
             <button style={chip(filtroCortes === 'con')} onClick={() => setFiltroCortes('con')}>✂️ Con cortes</button>
             <button style={chip(filtroCortes === 'sin')} onClick={() => setFiltroCortes('sin')}>Sin cortes</button>
-            {vendedores.length > 1 && (
+            {vendedores.length > 1 && !esAnual && (
               <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)} style={{ width: 'auto', minWidth: '170px' }}>
                 <option value="">Todos los vendedores</option>
                 {vendedores.map(v => <option key={v} value={v}>{v}</option>)}
@@ -348,8 +572,15 @@ export default function HistorialVentas() {
                   </div>
                 )
               })}
+              {lista.length > limite && (
+                <button onClick={() => setLimite(l => l + LIMITE_FILAS)}
+                  style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text1)', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: 500 }}>
+                  Mostrar {Math.min(LIMITE_FILAS, lista.length - limite)} más ({lista.length - limite} restantes)
+                </button>
+              )}
             </div>
           )}
+          </>)}
         </>
       )}
     </div>
