@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { calcularDistribucion, analizarSobrante, KERF, PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
+import { useState, useRef, useEffect, Fragment } from 'react'
+import { calcularDistribucion, analizarSobrante, evaluarMedidaMinima, KERF, CORTE_MIN_LADO, CORTE_MIN_LARGO, PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import { maskRut } from '../lib/rut'
 import CalculandoCortes from './CalculandoCortes'
 
@@ -82,6 +82,11 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   const [exportando, setExportando] = useState(false)
   const [calculando, setCalculando] = useState(false)
   const diagramaRef = useRef(null)
+  const tablaRef = useRef(null)
+  const focoPendiente = useRef(null) // casilla a enfocar cuando aparezca una fila nueva
+  const [enfoque, setEnfoque] = useState(null) // casilla de medida en foco; `tecleado` = ya se escribió algo desde que entró
+  const [aviso, setAviso] = useState(null) // piezas por debajo de la medida mínima de seguridad (pantalla de aviso)
+  const [bloqueadoPorSeguridad, setBloqueadoPorSeguridad] = useState(false) // se intentó optimizar con medidas bajo el mínimo
   const montado = useRef(true) // evita actualizar la pantalla si se salió del editor mientras se calculaba
   useEffect(() => {
     montado.current = true
@@ -89,6 +94,16 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   }, [])
 
   const piezasValidas = piezas.filter(p => p.cantidad && p.largo && p.ancho)
+
+  // El texto rojo de seguridad se calcula con las piezas de ahora: desaparece apenas ninguna queda bajo el mínimo
+  // (porque se corrigió la medida, se borró el dato, se eliminó la fila o se reinició)
+  const primeraBajoMinimo = piezas.findIndex(p => evaluarMedidaMinima(p.largo, p.ancho).invalida)
+  // Cuando ya no queda ninguna, el aviso se apaga del todo y solo vuelve tras un nuevo intento de optimizar
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (bloqueadoPorSeguridad && primeraBajoMinimo < 0) setBloqueadoPorSeguridad(false) }, [bloqueadoPorSeguridad, primeraBajoMinimo])
+  const textoSeguridad = bloqueadoPorSeguridad && primeraBajoMinimo >= 0
+    ? `La pieza ${primeraBajoMinimo + 1} está por debajo de la medida mínima de seguridad (${CORTE_MIN_LADO} × ${CORTE_MIN_LARGO} cm). Corrígela o elimínala para continuar.`
+    : ''
 
   function actualizarPieza(i, campo, valor) {
     const nuevas = [...piezas]
@@ -101,13 +116,79 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   }
 
   function eliminarFila(i) {
-    if (piezas.length <= 1) return
+    // Si es la única fila, no se puede quitar: se deja vacía (reiniciada)
+    if (piezas.length <= 1) { setPiezas([filaVacia()]); return }
     setPiezas(piezas.filter((_, idx) => idx !== i))
+  }
+
+  function enfocar(fila, campo) {
+    const el = tablaRef.current?.querySelector(`input[data-fila="${fila}"][data-campo="${campo}"]`)
+    if (!el) return false
+    el.focus()
+    el.select?.() // si ya había un valor, queda seleccionado para escribir encima
+    return true
+  }
+
+  // Cuando se agrega una fila con Enter, el cursor pasa a su casilla de cantidad
+  useEffect(() => {
+    if (!focoPendiente.current) return
+    const { fila, campo } = focoPendiente.current
+    focoPendiente.current = null
+    enfocar(fila, campo)
+  }, [piezas.length])
+
+  // Cierra el aviso de seguridad y deja el cursor en la medida que hay que corregir
+  function cerrarAviso() {
+    const primera = aviso?.[0]
+    setAviso(null)
+    if (primera) setTimeout(() => enfocar(primera.fila, primera.campo), 0)
+  }
+
+  // Esc también cierra el aviso
+  useEffect(() => {
+    if (!aviso) return
+    const alTeclear = (e) => { if (e.key === 'Escape') cerrarAviso() }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aviso])
+
+  // Teclado de la tabla: Enter avanza cantidad → largo → ancho y de ahí a la cantidad de la fila siguiente
+  // (el nombre y el borrado no forman parte del recorrido). Enter nunca borra ni envía nada.
+  function alTeclear(e, fila, campo, bloqueadas) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (e.nativeEvent?.isComposing) return
+      if (campo === 'cantidad') { enfocar(fila, 'largo'); return }
+      if (campo === 'largo') { enfocar(fila, 'ancho'); return }
+      // ancho (o nombre): sigue la fila de abajo; en la última, solo si ya tiene sus tres datos se agrega otra
+      if (fila < piezas.length - 1) { enfocar(fila + 1, 'cantidad'); return }
+      const p = piezas[fila]
+      if (p.cantidad && p.largo && p.ancho) {
+        focoPendiente.current = { fila: fila + 1, campo: 'cantidad' }
+        agregarFila()
+      }
+      return
+    }
+    if (bloqueadas.includes(e.key)) e.preventDefault()
   }
 
   async function calcular() {
     if (calculando) return
     setError('')
+    // Medida mínima de seguridad: ninguna pieza puede quedar por debajo (10 × 30 cm).
+    // Se revisa primero y se avisa con una pantalla; no se calcula nada hasta corregirlo.
+    const bajoElMinimo = piezas
+      .map((p, i) => ({ fila: i, p, ev: evaluarMedidaMinima(p.largo, p.ancho) }))
+      .filter(x => x.ev.invalida)
+      .map(x => ({ fila: x.fila, largo: x.p.largo, ancho: x.p.ancho, campo: x.ev.largo ? 'largo' : 'ancho' }))
+    if (bajoElMinimo.length > 0) {
+      // Se muestra la pantalla de aviso y, bajo la tabla, el texto en rojo (que se actualiza solo mientras se corrige)
+      setBloqueadoPorSeguridad(true)
+      setAviso(bajoElMinimo)
+      return
+    }
+    setBloqueadoPorSeguridad(false)
     if (piezasValidas.length === 0) { setError('Ingresa al menos una pieza con cantidad, largo y ancho'); return }
     const { w: W, h: H } = dimensiones
     for (const p of piezasValidas) {
@@ -320,7 +401,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         <div style={{ display: 'flex', gap: '20px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Cortes de las piezas</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Medidas en centímetros (cm)</p>
+            <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Medidas en centímetros (cm). Medida mínima por seguridad: {CORTE_MIN_LADO} × {CORTE_MIN_LARGO} cm.</p>
           </div>
           <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', marginLeft: 'auto' }}>
             <p style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '2px' }}>Tablero seleccionado</p>
@@ -344,10 +425,10 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         </label>
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <table ref={tablaRef} style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: 'var(--bg3)' }}>
-                {['No.', 'Cant. Piezas *', 'Nombre pieza', 'Largo (cm) *', 'Ancho (cm) *', ''].map(h => (
+                {['No.', 'Cant. Piezas *', 'Largo (cm) *', 'Ancho (cm) *', 'Nombre pieza', ''].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: '500', borderBottom: '1px solid var(--border)' }}>
                     {h}
                   </th>
@@ -355,43 +436,67 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
               </tr>
             </thead>
             <tbody>
-              {piezas.map((p, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(15,23,42,0.03)' }}>
-                  <td style={{ padding: '8px 12px', color: 'var(--text3)', fontSize: '12px' }}>{i + 1}</td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <input type="number" min="1" value={p.cantidad}
-                      onChange={e => actualizarPieza(i, 'cantidad', e.target.value.replace(/[^0-9]/g, ''))}
-                      onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
-                      style={{ width: '70px', padding: '6px 8px', fontSize: '12px' }} />
-                  </td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <input type="text" value={p.nombre}
-                      onChange={e => actualizarPieza(i, 'nombre', e.target.value)}
-                      placeholder="Ej: Puerta"
-                      style={{ width: '120px', padding: '6px 8px', fontSize: '12px' }} />
-                  </td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <input type="number" min="1" max={dimensiones.w} value={p.largo}
-                      onChange={e => actualizarPieza(i, 'largo', e.target.value.replace(/[^0-9.]/g, ''))}
-                      onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
-                      placeholder="cm"
-                      style={{ width: '80px', padding: '6px 8px', fontSize: '12px' }} />
-                  </td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <input type="number" min="1" max={dimensiones.h} value={p.ancho}
-                      onChange={e => actualizarPieza(i, 'ancho', e.target.value.replace(/[^0-9.]/g, ''))}
-                      onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
-                      placeholder="cm"
-                      style={{ width: '80px', padding: '6px 8px', fontSize: '12px' }} />
-                  </td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <button onClick={() => eliminarFila(i)}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '14px', opacity: piezas.length === 1 ? 0.3 : 1 }}>
-                      🗑
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {piezas.map((p, i) => {
+                const medida = evaluarMedidaMinima(p.largo, p.ancho)
+                // Mientras se escribe una medida de un solo dígito (el "2" de "25") no se pinta de rojo hasta salir de la casilla
+                const escribiendo = (campo) => enfoque?.fila === i && enfoque?.campo === campo && enfoque?.tecleado && parseFloat(p[campo]) < CORTE_MIN_LADO
+                const rojoLargo = medida.largo && !escribiendo('largo')
+                const rojoAncho = medida.ancho && !escribiendo('ancho')
+                const rojo = (activo) => (activo ? { borderColor: 'var(--red)', background: 'var(--red-soft)', color: 'var(--red)' } : {})
+                return (
+                  <Fragment key={i}>
+                    <tr style={{ borderBottom: (rojoLargo || rojoAncho) ? 'none' : '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(15,23,42,0.03)' }}>
+                      <td style={{ padding: '8px 12px', color: 'var(--text3)', fontSize: '12px' }}>{i + 1}</td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input type="number" min="1" value={p.cantidad} data-fila={i} data-campo="cantidad"
+                          onChange={e => actualizarPieza(i, 'cantidad', e.target.value.replace(/[^0-9]/g, ''))}
+                          onKeyDown={e => alTeclear(e, i, 'cantidad', ['e', 'E', '+', '-', '.'])}
+                          style={{ width: '70px', padding: '6px 8px', fontSize: '12px' }} />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input type="number" min="1" max={dimensiones.w} value={p.largo} data-fila={i} data-campo="largo"
+                          onChange={e => { setEnfoque(f => (f ? { ...f, tecleado: true } : f)); actualizarPieza(i, 'largo', e.target.value.replace(/[^0-9.]/g, '')) }}
+                          onKeyDown={e => alTeclear(e, i, 'largo', ['e', 'E', '+', '-'])}
+                          onFocus={() => setEnfoque({ fila: i, campo: 'largo', tecleado: false })} onBlur={() => setEnfoque(null)}
+                          aria-invalid={rojoLargo}
+                          placeholder="cm"
+                          style={{ width: '80px', padding: '6px 8px', fontSize: '12px', ...rojo(rojoLargo) }} />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input type="number" min="1" max={dimensiones.h} value={p.ancho} data-fila={i} data-campo="ancho"
+                          onChange={e => { setEnfoque(f => (f ? { ...f, tecleado: true } : f)); actualizarPieza(i, 'ancho', e.target.value.replace(/[^0-9.]/g, '')) }}
+                          onKeyDown={e => alTeclear(e, i, 'ancho', ['e', 'E', '+', '-'])}
+                          onFocus={() => setEnfoque({ fila: i, campo: 'ancho', tecleado: false })} onBlur={() => setEnfoque(null)}
+                          aria-invalid={rojoAncho}
+                          placeholder="cm"
+                          style={{ width: '80px', padding: '6px 8px', fontSize: '12px', ...rojo(rojoAncho) }} />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        <input type="text" value={p.nombre} data-fila={i} data-campo="nombre"
+                          onChange={e => actualizarPieza(i, 'nombre', e.target.value)}
+                          onKeyDown={e => alTeclear(e, i, 'nombre', [])}
+                          placeholder="Ej: Puerta (opcional)"
+                          style={{ width: '150px', padding: '6px 8px', fontSize: '12px' }} />
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>
+                        {/* El borrado queda fuera del recorrido con Enter y del Tab: solo se usa con un clic */}
+                        <button type="button" tabIndex={-1} aria-label={`Eliminar pieza ${i + 1}`} onClick={() => eliminarFila(i)}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '14px', opacity: piezas.length === 1 ? 0.3 : 1 }}>
+                          🗑
+                        </button>
+                      </td>
+                    </tr>
+                    {(rojoLargo || rojoAncho) && (
+                      <tr style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(15,23,42,0.03)' }}>
+                        <td />
+                        <td colSpan={5} style={{ padding: '0 8px 8px', fontSize: '12px', color: 'var(--red)', fontWeight: 500 }}>
+                          ⚠️ {medida.mensaje}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -399,7 +504,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           style={{ background: 'transparent', border: '1px dashed var(--border)', color: 'var(--text3)', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', marginTop: '10px', cursor: 'pointer', width: '100%' }}>
           + Agregar fila
         </button>
-        {error && <p style={{ fontSize: '12px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
+        {(textoSeguridad || error) && <p style={{ fontSize: '12px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{textoSeguridad || error}</p>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', gap: '10px', flexWrap: 'wrap' }}>
           {onVolver && <button onClick={onVolver} style={btnSecundario}>← Volver</button>}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginLeft: 'auto' }}>
@@ -413,6 +518,34 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           </div>
         </div>
         {calculando && <CalculandoCortes />}
+        {aviso && (
+          <div className="modal-fondo" onMouseDown={e => { if (e.target === e.currentTarget) cerrarAviso() }}>
+            <div className="modal-caja" role="alertdialog" aria-modal="true" aria-labelledby="aviso-seguridad-titulo" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '40px', lineHeight: 1, marginBottom: '8px' }} aria-hidden="true">⚠️</div>
+              <h3 id="aviso-seguridad-titulo" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--red)', marginBottom: '10px' }}>Medida no permitida por seguridad</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text1)', lineHeight: 1.5, marginBottom: '12px' }}>
+                {aviso.length === 1
+                  ? 'Por seguridad, uno de los cortes no cumple con las medidas mínimas permitidas.'
+                  : `Por seguridad, ${aviso.length} de los cortes no cumplen con las medidas mínimas permitidas.`}
+              </p>
+              <div style={{ background: 'var(--red-soft)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', textAlign: 'left' }}>
+                {aviso.slice(0, 5).map(a => (
+                  <p key={a.fila} style={{ fontSize: '13px', color: 'var(--red)', fontWeight: 600 }}>
+                    Pieza {a.fila + 1}: {a.largo || '—'} × {a.ancho || '—'} cm
+                  </p>
+                ))}
+                {aviso.length > 5 && <p style={{ fontSize: '12px', color: 'var(--red)' }}>y {aviso.length - 5} más…</p>}
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5, marginBottom: '16px' }}>
+                La medida mínima de un corte es de <strong>{CORTE_MIN_LADO} × {CORTE_MIN_LARGO} cm</strong>. Corrígela o elimina esa pieza para continuar.
+              </p>
+              <button type="button" autoFocus onClick={cerrarAviso}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 28px', fontSize: '14px', fontWeight: 600 }}>
+                Entendido
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
