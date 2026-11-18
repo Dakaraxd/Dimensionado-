@@ -12,6 +12,28 @@ export const KERF = 0.4
 export const PLANCHA_W_DEFAULT = 249
 export const PLANCHA_H_DEFAULT = 182
 
+// Medida mínima de una pieza, por seguridad en el corte: el lado corto debe medir al menos
+// CORTE_MIN_LADO y el lado largo al menos CORTE_MIN_LARGO (10 × 30 cm). No importa en qué casilla
+// se escriba cada medida (largo o ancho): se compara el lado menor y el mayor.
+export const CORTE_MIN_LADO = 10
+export const CORTE_MIN_LARGO = 30
+export const MENSAJE_MEDIDA_MINIMA = `Menor que la medida mínima de seguridad (${CORTE_MIN_LADO} × ${CORTE_MIN_LARGO} cm)`
+
+// Revisa lo que se va escribiendo, aunque falte una de las dos medidas. Devuelve qué casilla marcar en rojo.
+//   - Una medida menor que el lado mínimo ya es un problema por sí sola.
+//   - Con las dos medidas escritas, la mayor también debe llegar al largo mínimo.
+// Las casillas vacías o sin número no se juzgan.
+export function evaluarMedidaMinima(largo, ancho) {
+  const l = parseFloat(largo)
+  const a = parseFloat(ancho)
+  const tieneL = Number.isFinite(l)
+  const tieneA = Number.isFinite(a)
+  let marcaLargo = tieneL && l < CORTE_MIN_LADO
+  let marcaAncho = tieneA && a < CORTE_MIN_LADO
+  if (tieneL && tieneA && Math.max(l, a) < CORTE_MIN_LARGO) { marcaLargo = true; marcaAncho = true }
+  return { invalida: marcaLargo || marcaAncho, largo: marcaLargo, ancho: marcaAncho, mensaje: MENSAJE_MEDIDA_MINIMA }
+}
+
 const EPS = 1e-9
 const r6 = v => Math.round(v * 1e6) / 1e6
 const aspecto = (w, h) => (Math.max(w, h) > 0 ? Math.min(w, h) / Math.max(w, h) : 0)
