@@ -36,9 +36,12 @@ function DiagramaPlancha({ plancha, escala, planchaW, planchaH }) {
           }}>
             {cw > 25 && ch > 18 && (
               <>
-                <span style={{ fontSize: Math.min(cw, ch) * 0.15 > 11 ? 11 : Math.min(cw, ch) * 0.15, color: '#222', fontWeight: '600', lineHeight: 1.2, textAlign: 'center', padding: '0 2px' }}>
-                  {c.nombre || `P${i + 1}`}
-                </span>
+                {/* El nombre solo se muestra si la persona lo escribió; no se inventan etiquetas como "P1" */}
+                {c.nombre && (
+                  <span style={{ fontSize: Math.min(cw, ch) * 0.15 > 11 ? 11 : Math.min(cw, ch) * 0.15, color: '#222', fontWeight: '600', lineHeight: 1.2, textAlign: 'center', padding: '0 2px' }}>
+                    {c.nombre}
+                  </span>
+                )}
                 <span style={{ fontSize: Math.min(cw, ch) * 0.12 > 9 ? 9 : Math.min(cw, ch) * 0.12, color: '#555', lineHeight: 1.2 }}>
                   {c.w}×{c.h}cm
                 </span>
