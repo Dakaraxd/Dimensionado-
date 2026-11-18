@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import PanelVentas from './PanelVentas'
+import MetaAnual from '../components/MetaAnual'
 
 const ACCESOS = [
   { key: 'venta', icon: '🛒', label: 'Nueva orden', destacado: true, soloOperar: true },
@@ -58,6 +59,10 @@ export default function Inicio({ onNavegar }) {
         <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Hola{primerNombre ? `, ${primerNombre}` : ''}</h2>
         <p style={{ fontSize: '13px', color: 'var(--text3)' }}>¿Qué quieres hacer?</p>
       </div>
+
+      {/* La meta del año la ven solo el administrador y el subgerente (la base también lo exige).
+          Si la base aún no la tiene, la tarjeta no aparece. */}
+      {veTablero && <MetaAnual />}
 
       {veTablero ? (
         <PanelVentas despuesDeTarjetas={accesosRapidos} />
