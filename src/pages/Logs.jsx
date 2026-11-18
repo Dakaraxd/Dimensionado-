@@ -33,6 +33,12 @@ function descripcionLegible(accion, entidad, detalle) {
 
   if (entidad === 'stock') {
     if (accion === 'CREAR') return `${detalle.plancha} — ${detalle.total} unidades ingresadas`
+    // Movimiento de inventario autorizado por un subgerente
+    if (accion === 'EDITAR' && detalle.movimiento) {
+      const nombres = { ingreso: 'Ingreso', merma: 'Merma', devolucion: 'Devolución', ajuste: 'Ajuste' }
+      const n = detalle.movimiento === 'ajuste' && detalle.cantidad > 0 ? `+${detalle.cantidad}` : detalle.cantidad
+      return `${nombres[detalle.movimiento] ?? detalle.movimiento} de ${n} planchas${detalle.plancha ? ` — ${detalle.plancha}` : ''} · autorizó ${detalle.autorizado_por}`
+    }
     if (accion === 'EDITAR') return `${detalle.plancha} — de ${detalle.total_anterior} a ${detalle.nuevo_total} unidades`
   }
 
@@ -44,6 +50,7 @@ function descripcionLegible(accion, entidad, detalle) {
 
   if (entidad === 'usuario') {
     if (accion === 'CREAR') return `${detalle.nombre} (${detalle.email}) con rol ${detalle.rol}`
+    if (accion === 'EDITAR' && detalle.cambio) return `${detalle.cambio}${detalle.nombre ? ` — ${detalle.nombre}` : ''}`
   }
 
   if (entidad === 'sesion') return 'Cambio rápido de usuario en un equipo vinculado'

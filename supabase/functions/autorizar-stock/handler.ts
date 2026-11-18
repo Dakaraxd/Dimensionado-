@@ -179,9 +179,13 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
         console.error('autorizar-stock insert:', error)
         return json({ error: 'No se pudo registrar el movimiento. Intenta de nuevo.' }, 500)
       }
+      const { data: pl } = await admin.from('tipos_plancha').select('nombre, medida').eq('id', tipo_plancha_id).maybeSingle()
       await admin.from('logs').insert({
         usuario_id: usuarioId, usuario_nombre: yo.nombre, accion: 'EDITAR', entidad: 'stock',
-        detalle: { movimiento: tipo, cantidad, tipo_plancha_id, autorizado_por: v.nombre }
+        detalle: {
+          movimiento: tipo, cantidad, tipo_plancha_id, autorizado_por: v.nombre,
+          plancha: pl ? `${pl.nombre} ${pl.medida ?? ''}`.trim() : undefined,
+        }
       })
       return json({ ok: true, autorizado_por: v.nombre })
     }

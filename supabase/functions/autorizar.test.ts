@@ -19,6 +19,7 @@ function crearAdmin(errorInsert: { message: string } | null = null) {
       { id: SUB_INACTIVO, nombre: 'Sub Baja', rol: 'subgerente', activo: false },
     ],
     clave_subgerente: [],
+    tipos_plancha: [{ id: PLANCHA, nombre: 'Blanca', medida: '18mm' }],
     movimientos_inventario: [],
     logs: [],
   }
@@ -104,6 +105,7 @@ Deno.test('Movimiento con la clave correcta: se registra con quién lo hizo y qu
   assertEquals(m.autorizado_por, SUB1)
   assertEquals(m.cantidad, 3)
   assertEquals(tablas.logs.at(-1)?.entidad, 'stock')
+  assertEquals((tablas.logs.at(-1)?.detalle as { plancha: string }).plancha, 'Blanca 18mm')
   // la clave nunca queda en el registro de actividad
   assert(!JSON.stringify(tablas.logs).includes('ClaveSegura1'))
 })
