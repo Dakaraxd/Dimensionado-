@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, Fragment } from 'react'
 import { calcularDistribucion, analizarSobrante, evaluarMedidaMinima, KERF, CORTE_MIN_LADO, CORTE_MIN_LARGO, PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import { maskRut } from '../lib/rut'
+import { etapasDeCorte } from '../lib/etapas'
 import CalculandoCortes from './CalculandoCortes'
 
 // La animación de la sierra se ve como mínimo este tiempo (salvo que el equipo pida "reducir movimiento")
@@ -78,6 +79,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   const [resultado, setResultado] = useState(inicial?.planchas ?? null)
   const [vista, setVista] = useState(inicial?.planchas ? 'resultado' : 'piezas')
   const [permitirGiro, setPermitirGiro] = useState(true)
+  const [ordenado, setOrdenado] = useState(true) // cortes en tiras: solo cortes rectos de lado a lado, máximo 3 etapas
+  const [avisoOrden, setAvisoOrden] = useState('') // por qué el trabajo no pudo ordenarse (si pasó)
   const [error, setError] = useState('')
   const [exportando, setExportando] = useState(false)
   const [calculando, setCalculando] = useState(false)
@@ -217,7 +220,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     const inicio = performance.now()
     let calculo = null
     try {
-      calculo = calcularDistribucion(cortesValidos, W, H, { permitirGiro })
+      calculo = calcularDistribucion(cortesValidos, W, H, { permitirGiro, ordenado })
     } catch (e) {
       console.error('No se pudo calcular la distribución:', e)
     }
@@ -233,6 +236,9 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       setError(`${calculo.noColocadas.length} pieza(s) no pudieron ubicarse en ningún tablero. Revisa las medidas.`)
       return
     }
+    setAvisoOrden(calculo.ordenadoNoPosible
+      ? `Para no gastar ${calculo.planchasExtraParaOrdenar === 1 ? 'una plancha más' : `${calculo.planchasExtraParaOrdenar} planchas más`}, este trabajo no pudo ordenarse del todo: algunos tableros necesitan cortes en más de 3 etapas.`
+      : '')
     setResultado(calculo.planchas)
     setVista('resultado')
   }
@@ -331,7 +337,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(107, 114, 128)
           pdf.text(`${tablero.cortes.length} piezas · Cliente: ${cliente.nombre}`, margin, 25)
           const retazo = sobrantes[pi]?.area > 0 ? ` · Retazo reutilizable: ${Math.round(sobrantes[pi].w)} x ${Math.round(sobrantes[pi].h)} cm` : ''
-          pdf.text(`Aprovechamiento: ${eficiencia[pi]}%${retazo}`, margin, 30)
+          const et = etapasPor[pi]?.valido ? ` · ${etapasPor[pi].etapas} etapa${etapasPor[pi].etapas === 1 ? '' : 's'} de corte` : ''
+          pdf.text(`Aprovechamiento: ${eficiencia[pi]}%${retazo}${et}`, margin, 30)
           pdf.setDrawColor(227, 6, 19); pdf.setLineWidth(0.4); pdf.line(margin, 33, 195, 33)
 
           let finDiagrama = 36
@@ -389,6 +396,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     const usada = p.cortes.reduce((s, c) => s + c.w * c.h, 0)
     return Math.round((usada / (dimensiones.w * dimensiones.h)) * 100)
   }) ?? []
+  const etapasPor = resultado ? resultado.map(p => etapasDeCorte(p.cortes, dimensiones.w, dimensiones.h)) : []
   const sobrantes = resultado ? analizarSobrante(resultado, dimensiones.w, dimensiones.h).porTablero : []
   const eficienciaPromedio = eficiencia.length
     ? Math.round(eficiencia.reduce((s, e) => s + e, 0) / eficiencia.length)
@@ -421,6 +429,16 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           <span style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.4 }}>
             <strong style={{ color: 'var(--text1)' }}>Permitir girar piezas 90°</strong> — ahorra material y deja un retazo más grande.
             Desmárcalo si la veta o el dibujo del tablero debe respetar la dirección.
+          </span>
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '16px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={ordenado} onChange={e => setOrdenado(e.target.checked)}
+            style={{ width: '18px', height: '18px', marginTop: '2px', accentColor: 'var(--primary)', flexShrink: 0 }} />
+          <span style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.4 }}>
+            <strong style={{ color: 'var(--text1)' }}>Cortes ordenados</strong> — solo cortes rectos de lado a lado, en 3 etapas como máximo:
+            primero las tiras, luego las columnas y al final las piezas. Se usa siempre que no obligue a gastar una plancha más.
+            Desmárcalo para priorizar el retazo más grande, aunque haya más cortes.
           </span>
         </label>
 
@@ -591,6 +609,10 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         {error && <p style={{ fontSize: '12px', color: 'var(--red)', marginTop: '10px' }}>{error}</p>}
       </div>
 
+      {avisoOrden && (
+        <p style={{ fontSize: '13px', color: 'var(--amber)', background: 'var(--amber-soft)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', lineHeight: 1.5 }}>⚠️ {avisoOrden}</p>
+      )}
+
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <div>
           <p style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '6px' }}>Datos del Cliente</p>
@@ -615,6 +637,16 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
                 <p style={{ fontSize: '12px', color: 'var(--text3)' }}>{tablero.cortes.length} piezas</p>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {etapasPor[pi]?.valido && (
+                  <span style={{
+                    background: etapasPor[pi].etapas <= 3 ? 'var(--green-soft)' : 'var(--amber-soft)',
+                    color: etapasPor[pi].etapas <= 3 ? 'var(--green)' : 'var(--amber)',
+                    fontSize: '12px', fontWeight: '500', padding: '3px 12px', borderRadius: '99px'
+                  }}
+                    title={etapasPor[pi].porEtapa.map((n, i) => (i > 0 && n > 0 ? `Etapa ${i}: ${n} corte${n === 1 ? '' : 's'}` : null)).filter(Boolean).join(' · ')}>
+                    ✂️ {etapasPor[pi].etapas} {etapasPor[pi].etapas === 1 ? 'etapa' : 'etapas'} de corte
+                  </span>
+                )}
                 {sobrantes[pi]?.area > 0 && (
                   <span style={{ background: 'var(--info-soft)', color: 'var(--info)', fontSize: '12px', fontWeight: '500', padding: '3px 12px', borderRadius: '99px' }}
                     title="Rectángulo libre más grande que queda de este tablero, útil para otras órdenes">
