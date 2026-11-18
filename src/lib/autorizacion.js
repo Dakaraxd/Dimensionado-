@@ -33,6 +33,19 @@ export async function definirClave({ clave, claveActual }) {
   return error ? leerError(error, 'No se pudo guardar la clave. Intenta de nuevo.') : {}
 }
 
+// Subgerente: todas las cuentas de subgerente (con su estado y si ya tienen clave)
+export async function listarCuentasSubgerente() {
+  const { data, error } = await llamar({ accion: 'lista_subgerentes' })
+  if (error) return { error: (await leerError(error, 'No se pudo cargar la lista de subgerentes.')).error, subgerentes: [] }
+  return { subgerentes: data?.subgerentes ?? [] }
+}
+
+// Subgerente: activa o desactiva la cuenta de otro subgerente
+export async function cambiarEstadoSubgerente(userId, activo) {
+  const { error } = await llamar({ accion: 'estado_subgerente', user_id: userId, activo })
+  return error ? leerError(error, 'No se pudo cambiar el estado de la cuenta.') : {}
+}
+
 // Administrador: borra la clave de un subgerente (por ejemplo si la olvidó)
 export async function restablecerClave(userId) {
   const { error } = await llamar({ accion: 'restablecer', user_id: userId })

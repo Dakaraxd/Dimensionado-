@@ -90,10 +90,17 @@ export default function Usuarios() {
   }
 
   const adminsActivos = usuarios.filter(u => u.rol === 'administrador' && u.activo !== false).length
+  // El administrador solo puede crear la primera cuenta de subgerente; después las gestiona un subgerente
+  const haySubgerente = usuarios.some(u => u.rol === 'subgerente')
+  const rolesElegibles = Object.entries(ROLES).filter(([k]) => k !== 'subgerente' || !haySubgerente)
 
   async function guardarEdicion(original) {
     const nombre = editando.nombre.trim()
     if (nombre.length < 2) { setErrorEd('Escribe el nombre'); return }
+    if (original.rol === 'subgerente' && (editando.rol !== original.rol || editando.activo !== (original.activo !== false))) {
+      setErrorEd('Las cuentas de subgerente solo las gestiona un subgerente.')
+      return
+    }
     const esYo = original.id === user?.id
     if (esYo && (editando.rol !== original.rol || editando.activo === false)) {
       setErrorEd('No puedes cambiar tu propio rol ni desactivarte a ti mismo: pídeselo a otro administrador.')
@@ -190,9 +197,14 @@ export default function Usuarios() {
               <select value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
                 <option value="vendedor">Vendedor</option>
                 <option value="administrador">Administrador</option>
-                <option value="subgerente">Subgerente</option>
+                {!haySubgerente && <option value="subgerente">Subgerente</option>}
                 <option value="solo_lectura">Solo lectura</option>
               </select>
+              {!haySubgerente && form.rol === 'subgerente' && (
+                <p style={{ fontSize: '11px', color: 'var(--amber)', marginTop: '6px', lineHeight: 1.4 }}>
+                  Solo puedes crear <strong>una</strong> cuenta de subgerente. Después, las demás las crea un subgerente desde su sesión.
+                </p>
+              )}
             </div>
           </div>
           {error && (
@@ -229,16 +241,24 @@ export default function Usuarios() {
                   </td>
                   <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{u.email}</td>
                   <td style={{ padding: '10px 16px' }}>
-                    <select value={editando.rol} onChange={e => setEditando({ ...editando, rol: e.target.value })}>
-                      {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
+                    {u.rol === 'subgerente' ? (
+                      <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Subgerente 🔒</span>
+                    ) : (
+                      <select value={editando.rol} onChange={e => setEditando({ ...editando, rol: e.target.value })}>
+                        {rolesElegibles.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    )}
                   </td>
                   <td style={{ padding: '10px 16px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editando.activo} style={{ width: '16px', height: '16px' }}
-                        onChange={e => setEditando({ ...editando, activo: e.target.checked })} />
-                      Activo
-                    </label>
+                    {u.rol === 'subgerente' ? (
+                      <span style={{ fontSize: '11px', color: 'var(--text3)' }}>Lo gestiona un subgerente</span>
+                    ) : (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editando.activo} style={{ width: '16px', height: '16px' }}
+                          onChange={e => setEditando({ ...editando, activo: e.target.checked })} />
+                        Activo
+                      </label>
+                    )}
                   </td>
                   <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{new Date(u.creado_en).toLocaleDateString('es-CL')}</td>
                   <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>

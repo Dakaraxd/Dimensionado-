@@ -197,3 +197,35 @@ Deno.test('Estado: un subgerente consulta si ya tiene clave; otros roles no', as
   assertEquals((await llamar(admin, SUB1, { accion: 'estado' })).tiene_clave, true)
   assertEquals((await llamar(admin, ADMIN, { accion: 'estado' })).status, 403)
 })
+
+Deno.test('Lista de subgerentes y activar/desactivar: solo un subgerente (nunca el administrador)', async () => {
+  const { admin, tablas } = crearAdmin()
+  await definir(admin, SUB1, 'ClaveSegura1')
+  assertEquals((await llamar(admin, ADMIN, { accion: 'lista_subgerentes' })).status, 403)
+  assertEquals((await llamar(admin, VEND, { accion: 'lista_subgerentes' })).status, 403)
+  const lista = await llamar(admin, SUB1, { accion: 'lista_subgerentes' })
+  assertEquals(lista.subgerentes.length, 3)
+  assertEquals(lista.subgerentes.find((s: { id: string }) => s.id === SUB1).tiene_clave, true)
+  assertEquals(lista.subgerentes.find((s: { id: string }) => s.id === SUB2).tiene_clave, false)
+
+  // el administrador no puede desactivar ni reactivar subgerentes
+  assertEquals((await llamar(admin, ADMIN, { accion: 'estado_subgerente', user_id: SUB2, activo: false })).status, 403)
+  assertEquals(tablas.profiles.find(p => p.id === SUB2)?.activo, true)
+  // un subgerente sí; y no puede desactivarse a sí mismo
+  assertEquals((await llamar(admin, SUB1, { accion: 'estado_subgerente', user_id: SUB2, activo: false })).status, 200)
+  assertEquals(tablas.profiles.find(p => p.id === SUB2)?.activo, false)
+  assertEquals((await llamar(admin, SUB1, { accion: 'estado_subgerente', user_id: SUB1, activo: false })).status, 400)
+  // solo sobre cuentas de subgerente
+  assertEquals((await llamar(admin, SUB1, { accion: 'estado_subgerente', user_id: VEND, activo: false })).status, 400)
+  assertEquals((await llamar(admin, SUB1, { accion: 'estado_subgerente', user_id: 'x', activo: false })).status, 400)
+  assertEquals(tablas.logs.at(-1)?.entidad, 'usuario')
+})
+
+Deno.test('Un subgerente desactivado ya no puede autorizar movimientos', async () => {
+  const { admin } = crearAdmin()
+  await definir(admin, SUB1, 'ClaveSegura1')
+  await definir(admin, SUB2, 'OtraClave88')
+  await llamar(admin, SUB1, { accion: 'estado_subgerente', user_id: SUB2, activo: false })
+  assertEquals((await mov(admin, SUB2, 'OtraClave88')).status, 401)
+  assertEquals((await mov(admin, SUB1, 'ClaveSegura1')).status, 200)
+})

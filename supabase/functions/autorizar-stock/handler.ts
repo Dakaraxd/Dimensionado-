@@ -55,6 +55,7 @@ async function verificarClave(admin: Admin, subgerenteId: string, clave: string,
 //   definir      (subgerente)     → crea o cambia SU clave (pide la actual si ya tiene)
 //   restablecer  (administrador)  → borra la clave de un subgerente (la olvidó)
 //   movimiento   (administrador)  → registra un movimiento de inventario con la clave de un subgerente
+//   lista_subgerentes / estado_subgerente (subgerente) → ver y activar/desactivar cuentas de subgerente
 export async function manejar(req: Request, admin: Admin, usuarioId: string, ahora = new Date()): Promise<Response> {
   try {
     const cuerpo = await req.json()
@@ -73,6 +74,35 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
         .filter((p: { id: string; activo: boolean }) => p.activo !== false && conClave.has(p.id))
         .map((p: { id: string; nombre: string }) => ({ id: p.id, nombre: p.nombre }))
       return json({ ok: true, subgerentes })
+    }
+
+    // Gestión de las cuentas de subgerente: solo la hace un subgerente (el administrador no).
+    if (accion === 'lista_subgerentes') {
+      if (yo.rol !== 'subgerente') return json({ error: 'No tienes permiso.' }, 403)
+      const { data: perfiles } = await admin.from('profiles').select('id, nombre, email, rol, activo').eq('rol', 'subgerente')
+      const { data: claves } = await admin.from('clave_subgerente').select('user_id')
+      const conClave = new Set((claves ?? []).map((c: { user_id: string }) => c.user_id))
+      const subgerentes = (perfiles ?? []).map((p: { id: string; nombre: string; email: string; activo: boolean }) => ({
+        id: p.id, nombre: p.nombre, email: p.email, activo: p.activo !== false, tiene_clave: conClave.has(p.id),
+      }))
+      return json({ ok: true, subgerentes })
+    }
+
+    if (accion === 'estado_subgerente') {
+      if (yo.rol !== 'subgerente') return json({ error: 'Solo un subgerente puede activar o desactivar cuentas de subgerente.' }, 403)
+      if (typeof cuerpo.user_id !== 'string' || !UUID.test(cuerpo.user_id) || typeof cuerpo.activo !== 'boolean') {
+        return json({ error: 'Datos no válidos.' }, 400)
+      }
+      if (cuerpo.user_id === usuarioId) return json({ error: 'No puedes desactivar tu propia cuenta.' }, 400)
+      const { data: objetivo } = await admin.from('profiles').select('rol, nombre').eq('id', cuerpo.user_id).maybeSingle()
+      if (!objetivo || objetivo.rol !== 'subgerente') return json({ error: 'Esa cuenta no es de un subgerente.' }, 400)
+      const { error } = await admin.from('profiles').update({ activo: cuerpo.activo }).eq('id', cuerpo.user_id)
+      if (error) throw error
+      await admin.from('logs').insert({
+        usuario_id: usuarioId, usuario_nombre: yo.nombre, accion: 'EDITAR', entidad: 'usuario',
+        detalle: { cambio: cuerpo.activo ? 'Subgerente activado' : 'Subgerente desactivado', usuario_id: cuerpo.user_id, nombre: objetivo.nombre }
+      })
+      return json({ ok: true })
     }
 
     if (accion === 'estado') {

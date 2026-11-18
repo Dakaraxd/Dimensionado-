@@ -8,6 +8,7 @@ import { consultarClave } from '../lib/autorizacion'
 import ClaveSubgerente from '../components/ClaveSubgerente'
 import Inicio from './Inicio'
 import Usuarios from './Usuarios'
+import Subgerentes from './Subgerentes'
 import Stock from './Stock'
 import Planchas from './Planchas'
 import Ordenes from './Ordenes'
@@ -42,6 +43,11 @@ const GRUPOS = [
       { key: 'usuarios', icon: '👥', label: 'Usuarios' },
       { key: 'logs', icon: '🔍', label: 'Actividad' },
     ],
+  },
+  {
+    titulo: 'Subgerencia',
+    soloSubgerente: true,
+    items: [{ key: 'subgerentes', icon: '🔑', label: 'Subgerentes' }],
   },
 ]
 
@@ -94,7 +100,7 @@ export default function Dashboard() {
   const esAdmin = profile?.rol === 'administrador'
   const puedeOperar = esAdmin || profile?.rol === 'vendedor'
   const grupos = GRUPOS
-    .filter(g => !g.soloAdmin || esAdmin)
+    .filter(g => (!g.soloAdmin || esAdmin) && (!g.soloSubgerente || esSubgerente))
     .map(g => ({ ...g, items: g.items.filter(i => !i.soloOperar || puedeOperar) }))
   const itemActual = grupos.flatMap(g => g.items).find(i => i.key === pagina)
 
@@ -206,6 +212,7 @@ export default function Dashboard() {
           {pagina === 'planchas' && esAdmin && <Planchas />}
           {pagina === 'usuarios' && esAdmin && <Usuarios />}
           {pagina === 'logs' && esAdmin && <Actividad />}
+          {pagina === 'subgerentes' && esSubgerente && <Subgerentes />}
         </main>
       </div>
 

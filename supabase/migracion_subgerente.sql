@@ -191,3 +191,71 @@ create trigger trg_aplicar_movimiento
 -- (los triggers de ventas y de movimientos son SECURITY DEFINER y siguen funcionando)
 -- ────────────────────────────────────────────────────────────
 revoke insert, update, delete, truncate on public.stock_general from anon, authenticated;
+
+
+-- ────────────────────────────────────────────────────────────
+-- 5. LAS CUENTAS DE SUBGERENTE SOLO LAS GESTIONA UN SUBGERENTE
+-- El administrador puede crear la PRIMERA cuenta de subgerente (o convertir a alguien en
+-- subgerente) únicamente mientras no exista ninguna. Después ya no puede crear, convertir,
+-- quitar el rol, activar, desactivar ni borrar cuentas de subgerente: solo otro subgerente
+-- activo (desde la app, a través de las funciones de servidor, que no pasan por este trigger).
+-- Un subgerente tampoco puede cambiarse el rol ni desactivarse a sí mismo.
+-- Si algún día no quedara ningún subgerente activo, se corrige desde el SQL Editor.
+-- ────────────────────────────────────────────────────────────
+create or replace function public.proteger_cuentas_subgerente()
+returns trigger
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_es_sub     boolean;
+  v_hay_sub    boolean;
+begin
+  -- Solo aplica a quien actúa con una sesión de usuario de la app
+  if auth.uid() is null then
+    if tg_op = 'DELETE' then return old; end if;
+    return new;
+  end if;
+
+  select exists (select 1 from public.profiles p where p.id = auth.uid() and p.rol::text = 'subgerente' and p.activo is not false)
+    into v_es_sub;
+  select exists (select 1 from public.profiles p where p.rol::text = 'subgerente')
+    into v_hay_sub;
+
+  if tg_op = 'INSERT' then
+    if new.rol::text = 'subgerente' and not v_es_sub and v_hay_sub then
+      raise exception 'Las cuentas de subgerente solo las puede crear un subgerente';
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'DELETE' then
+    if old.rol::text = 'subgerente' and not v_es_sub then
+      raise exception 'Las cuentas de subgerente solo las puede gestionar un subgerente';
+    end if;
+    return old;
+  end if;
+
+  -- UPDATE: solo importa si cambia el rol o el estado de una cuenta que es o será de subgerente
+  if (old.rol::text = 'subgerente' or new.rol::text = 'subgerente')
+     and (new.rol is distinct from old.rol or new.activo is distinct from old.activo) then
+    if old.id = auth.uid() then
+      raise exception 'No puedes cambiar tu propio rol ni desactivarte a ti mismo';
+    end if;
+    if not v_es_sub then
+      -- única excepción: el administrador convierte a alguien en subgerente cuando aún no hay ninguno
+      if not (new.rol::text = 'subgerente' and old.rol::text <> 'subgerente' and not v_hay_sub) then
+        raise exception 'Las cuentas de subgerente solo las puede gestionar un subgerente';
+      end if;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.proteger_cuentas_subgerente() from public, anon, authenticated;
+
+drop trigger if exists trg_proteger_subgerentes on public.profiles;
+create trigger trg_proteger_subgerentes
+  before insert or update or delete on public.profiles
+  for each row execute function public.proteger_cuentas_subgerente();
