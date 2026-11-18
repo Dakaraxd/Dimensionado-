@@ -41,9 +41,16 @@ serve(async (req) => {
 
     // Quién puede crear qué rol (las cuentas de subgerente: ver _shared/permisos.ts)
     const rolNuevo = rol ?? 'vendedor'
-    const { count: subgerentes } = await supabaseAdmin
-      .from('profiles').select('id', { count: 'exact', head: true }).eq('rol', 'subgerente')
-    const permiso = puedeCrearRol(profile?.rol, profile?.activo, rolNuevo, (subgerentes ?? 0) > 0)
+    // Solo hace falta saber si ya hay subgerentes cuando se pide crear uno. Si no se puede verificar,
+    // se rechaza (nunca se asume que "no hay ninguno").
+    let yaHaySubgerentes = true
+    if (rolNuevo === 'subgerente') {
+      const { count, error: errConteo } = await supabaseAdmin
+        .from('profiles').select('id', { count: 'exact', head: true }).eq('rol', 'subgerente')
+      if (errConteo || count === null) throw new Error('No se pudo verificar los subgerentes existentes. Intenta de nuevo.')
+      yaHaySubgerentes = count > 0
+    }
+    const permiso = puedeCrearRol(profile?.rol, profile?.activo, rolNuevo, yaHaySubgerentes)
     if (!permiso.ok) throw new Error(permiso.error)
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
