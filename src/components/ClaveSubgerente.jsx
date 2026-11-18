@@ -15,7 +15,11 @@ export default function ClaveSubgerente({ tieneClave, onCerrar, onListo }) {
   async function guardar(e) {
     e.preventDefault()
     if (tieneClave && !actual) { setError('Escribe tu clave actual'); return }
-    if (clave.length < 6) { setError('La clave nueva debe tener al menos 6 caracteres'); return }
+    if (!/^\d{6}$/.test(clave)) { setError('La clave debe tener exactamente 6 números'); return }
+    if (/^(\d)\1+$/.test(clave) || '0123456789'.includes(clave) || '9876543210'.includes(clave)) {
+      setError('La clave es demasiado evidente (por ejemplo 123456 o 000000). Elige otra')
+      return
+    }
     if (clave !== repetir) { setError('Las claves no coinciden'); return }
     setCargando(true)
     setError('')
@@ -31,18 +35,20 @@ export default function ClaveSubgerente({ tieneClave, onCerrar, onListo }) {
       <form onSubmit={guardar}>
         <h3 style={{ fontSize: '17px', fontWeight: 600, marginBottom: '6px' }}>🔑 {tieneClave ? 'Cambiar mi clave' : 'Crear mi clave de autorización'}</h3>
         <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '16px', lineHeight: 1.5 }}>
-          Esta clave se pide cada vez que alguien modifica el stock. <strong>Es solo tuya: no la compartas ni la escribas donde otros la vean.</strong> Tiene que ser distinta a tu contraseña de acceso.
+          Esta clave se pide cuando alguien registra una <strong>merma</strong> o un <strong>ajuste</strong> de stock. <strong>Es solo tuya: no la compartas ni la escribas donde otros la vean.</strong> Son 6 números, distintos a los de tu PIN y sin ser evidentes (como 123456 o 000000).
         </p>
         {tieneClave && (
           <>
             <label style={label}>Clave actual</label>
-            <input type="password" autoComplete="off" autoFocus value={actual} onChange={e => setActual(e.target.value)} style={{ marginBottom: '12px' }} />
+            <input type="password" inputMode="numeric" autoComplete="off" autoFocus value={actual} onChange={e => setActual(e.target.value)} style={{ marginBottom: '12px' }} />
           </>
         )}
-        <label style={label}>{tieneClave ? 'Clave nueva (mínimo 6 caracteres)' : 'Clave (mínimo 6 caracteres)'}</label>
-        <input type="password" autoComplete="new-password" autoFocus={!tieneClave} maxLength={64} value={clave} onChange={e => setClave(e.target.value)} style={{ marginBottom: '12px' }} />
+        <label style={label}>{tieneClave ? 'Clave nueva (6 números)' : 'Clave (6 números)'}</label>
+        <input type="password" inputMode="numeric" autoComplete="new-password" autoFocus={!tieneClave} maxLength={6} value={clave}
+          onChange={e => setClave(e.target.value.replace(/\D/g, ''))} placeholder="••••••" style={{ marginBottom: '12px' }} />
         <label style={label}>Repite la clave</label>
-        <input type="password" autoComplete="new-password" maxLength={64} value={repetir} onChange={e => setRepetir(e.target.value)} />
+        <input type="password" inputMode="numeric" autoComplete="new-password" maxLength={6} value={repetir}
+          onChange={e => setRepetir(e.target.value.replace(/\D/g, ''))} placeholder="••••••" />
         {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '18px' }}>
           <button type="button" onClick={onCerrar} disabled={cargando}

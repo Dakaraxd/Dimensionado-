@@ -27,7 +27,8 @@ export default function Stock() {
   const [modal, setModal] = useState(null) // null | { tipo?, tipo_plancha_id? }
   const [recarga, setRecarga] = useState(0)
 
-  const esAdmin = profile?.rol === 'administrador'
+  // Administradores y vendedores registran movimientos (merma y ajuste con la clave de un subgerente)
+  const esAdmin = profile?.rol === 'administrador' || profile?.rol === 'vendedor'
 
   async function cargar() {
     const [st, ti] = await Promise.all([

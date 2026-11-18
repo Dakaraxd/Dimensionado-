@@ -11,6 +11,8 @@ const ACCESOS = [
   { key: 'reportes', icon: '📊', label: 'Reportes' },
 ]
 
+const ACCESO_ACTIVIDAD = { key: 'logs', icon: '🔍', label: 'Actividad' }
+
 const ACCESOS_ADMIN = [
   { key: 'planchas', icon: '🟫', label: 'Planchas' },
   { key: 'usuarios', icon: '👥', label: 'Usuarios' },
@@ -20,8 +22,11 @@ export default function Inicio({ onNavegar }) {
   const { profile } = useAuth()
   const [pendientes, setPendientes] = useState(0)
   const esAdmin = profile?.rol === 'administrador'
+  const esSubgerente = profile?.rol === 'subgerente'
   const puedeOperar = esAdmin || profile?.rol === 'vendedor'
-  const accesos = (esAdmin ? [...ACCESOS, ...ACCESOS_ADMIN] : ACCESOS).filter(a => !a.soloOperar || puedeOperar)
+  // El subgerente ve el mismo panel de ventas y gráficos que el administrador (solo lectura)
+  const veTablero = esAdmin || esSubgerente
+  const accesos = (esAdmin ? [...ACCESOS, ...ACCESOS_ADMIN] : esSubgerente ? [...ACCESOS, ACCESO_ACTIVIDAD] : ACCESOS).filter(a => !a.soloOperar || puedeOperar)
   const primerNombre = profile?.nombre?.split(' ')[0]
 
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function Inicio({ onNavegar }) {
         <p style={{ fontSize: '13px', color: 'var(--text3)' }}>¿Qué quieres hacer?</p>
       </div>
 
-      {esAdmin ? (
+      {veTablero ? (
         <PanelVentas despuesDeTarjetas={accesosRapidos} />
       ) : accesosRapidos}
     </div>

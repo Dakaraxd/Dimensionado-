@@ -37,7 +37,7 @@ function descripcionLegible(accion, entidad, detalle) {
     if (accion === 'EDITAR' && detalle.movimiento) {
       const nombres = { ingreso: 'Ingreso', merma: 'Merma', devolucion: 'Devolución', ajuste: 'Ajuste' }
       const n = detalle.movimiento === 'ajuste' && detalle.cantidad > 0 ? `+${detalle.cantidad}` : detalle.cantidad
-      return `${nombres[detalle.movimiento] ?? detalle.movimiento} de ${n} planchas${detalle.plancha ? ` — ${detalle.plancha}` : ''} · autorizó ${detalle.autorizado_por}`
+      return `${nombres[detalle.movimiento] ?? detalle.movimiento} de ${n} planchas${detalle.plancha ? ` — ${detalle.plancha}` : ''}${detalle.autorizado_por ? ` · autorizó ${detalle.autorizado_por}` : ''}`
     }
     if (accion === 'EDITAR') return `${detalle.plancha} — de ${detalle.total_anterior} a ${detalle.nuevo_total} unidades`
   }
