@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { puedeCrearRol } from '../_shared/permisos.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,14 +32,26 @@ serve(async (req) => {
 
     const { data: profile } = await supabaseClient
       .from('profiles')
-      .select('rol')
+      .select('rol, activo')
       .eq('id', user.id)
       .single()
 
-    if (profile?.rol !== 'administrador') throw new Error('Solo administradores pueden crear usuarios')
-
     // Crear el usuario
     const { nombre, email, password, rol } = await req.json()
+
+    // Quién puede crear qué rol (las cuentas de subgerente: ver _shared/permisos.ts)
+    const rolNuevo = rol ?? 'vendedor'
+    // Solo hace falta saber si ya hay subgerentes cuando se pide crear uno. Si no se puede verificar,
+    // se rechaza (nunca se asume que "no hay ninguno").
+    let yaHaySubgerentes = true
+    if (rolNuevo === 'subgerente') {
+      const { count, error: errConteo } = await supabaseAdmin
+        .from('profiles').select('id', { count: 'exact', head: true }).eq('rol', 'subgerente')
+      if (errConteo || count === null) throw new Error('No se pudo verificar los subgerentes existentes. Intenta de nuevo.')
+      yaHaySubgerentes = count > 0
+    }
+    const permiso = puedeCrearRol(profile?.rol, profile?.activo, rolNuevo, yaHaySubgerentes)
+    if (!permiso.ok) throw new Error(permiso.error)
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -55,7 +68,7 @@ serve(async (req) => {
         id: newUser.user.id,
         nombre,
         email,
-        rol: rol ?? 'vendedor'
+        rol: rolNuevo
       })
 
     if (profileError) {

@@ -4,8 +4,11 @@ import { cuentaDe } from '../lib/cuentas'
 import CambiarUsuario from '../components/CambiarUsuario'
 import { ConfigurarPin } from '../components/CuentasRapidas'
 import { consultarPin, activarEquipo, guardarCuenta } from '../lib/cuentas'
+import { consultarClave } from '../lib/autorizacion'
+import ClaveSubgerente from '../components/ClaveSubgerente'
 import Inicio from './Inicio'
 import Usuarios from './Usuarios'
+import Subgerentes from './Subgerentes'
 import Stock from './Stock'
 import Planchas from './Planchas'
 import Ordenes from './Ordenes'
@@ -41,6 +44,11 @@ const GRUPOS = [
       { key: 'logs', icon: '🔍', label: 'Actividad' },
     ],
   },
+  {
+    titulo: 'Subgerencia',
+    soloSubgerente: true,
+    items: [{ key: 'subgerentes', icon: '🔑', label: 'Subgerentes' }],
+  },
 ]
 
 export default function Dashboard() {
@@ -67,6 +75,17 @@ export default function Dashboard() {
     return () => { cancelado = true }
   }, [user?.id, tienePin])
 
+  // Subgerente: ¿ya creó la clave con la que autoriza los cambios de stock?
+  const esSubgerente = profile?.rol === 'subgerente'
+  const [claveAbierta, setClaveAbierta] = useState(false)
+  const [tieneClave, setTieneClave] = useState(null) // null = aún no se sabe
+  useEffect(() => {
+    if (!esSubgerente) return
+    let cancelado = false
+    consultarClave().then(r => { if (!cancelado) setTieneClave(r.tiene) })
+    return () => { cancelado = true }
+  }, [esSubgerente])
+
   async function activarAqui() {
     setActivando(true)
     setErrorPin('')
@@ -81,7 +100,7 @@ export default function Dashboard() {
   const esAdmin = profile?.rol === 'administrador'
   const puedeOperar = esAdmin || profile?.rol === 'vendedor'
   const grupos = GRUPOS
-    .filter(g => !g.soloAdmin || esAdmin)
+    .filter(g => (!g.soloAdmin || esAdmin) && (!g.soloSubgerente || esSubgerente))
     .map(g => ({ ...g, items: g.items.filter(i => !i.soloOperar || puedeOperar) }))
   const itemActual = grupos.flatMap(g => g.items).find(i => i.key === pagina)
 
@@ -135,6 +154,12 @@ export default function Dashboard() {
             🔐 {tienePin ? 'Cambiar mi PIN' : pinEnServidor ? (activando ? 'Activando...' : 'Activar acceso rápido aquí') : 'Crear mi PIN'}
           </button>
           {errorPin && <p style={{ fontSize: '11px', color: 'var(--red)', marginBottom: '4px' }}>{errorPin}</p>}
+          {esSubgerente && (
+            <button onClick={() => setClaveAbierta(true)}
+              style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text3)', padding: '4px', fontSize: '12px', marginBottom: '4px' }}>
+              🔑 {tieneClave ? 'Cambiar mi clave de stock' : 'Crear mi clave de stock'}
+            </button>
+          )}
           <button onClick={signOut}
             style={{
               width: '100%', background: 'transparent', border: '1px solid var(--border)', color: 'var(--red)',
@@ -157,6 +182,15 @@ export default function Dashboard() {
         </div>
 
         <main className="main-content">
+          {esSubgerente && tieneClave === false && (
+            <div style={{ background: 'var(--info-soft)', border: '1px solid rgba(0,75,155,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <p style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'var(--text1)' }}>
+                🔑 <strong>Falta tu clave de autorización:</strong> sin ella no puedes autorizar cambios de stock.
+              </p>
+              <button onClick={() => setClaveAbierta(true)}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600 }}>Crear mi clave</button>
+            </div>
+          )}
           {!tienePin && pinEnServidor === false && !invitacionOculta && user && (
             <div style={{ background: 'var(--primary-soft)', border: '1px solid rgba(227,6,19,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <p style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'var(--text1)' }}>
@@ -178,6 +212,7 @@ export default function Dashboard() {
           {pagina === 'planchas' && esAdmin && <Planchas />}
           {pagina === 'usuarios' && esAdmin && <Usuarios />}
           {pagina === 'logs' && esAdmin && <Actividad />}
+          {pagina === 'subgerentes' && esSubgerente && <Subgerentes />}
         </main>
       </div>
 
@@ -187,6 +222,7 @@ export default function Dashboard() {
           onAgregarOtra={() => { setSelectorAbierto(false); signOut() }}
           onConfigurarPin={() => { setSelectorAbierto(false); setPinAbierto(true) }} />
       )}
+      {claveAbierta && <ClaveSubgerente tieneClave={!!tieneClave} onCerrar={() => setClaveAbierta(false)} onListo={() => setTieneClave(true)} />}
       {pinAbierto && <ConfigurarPin usuario={usuario} requierePinActual={tienePin || pinEnServidor === true} onCerrar={() => setPinAbierto(false)} onListo={() => refrescar(n => n + 1)} />}
     </div>
   )

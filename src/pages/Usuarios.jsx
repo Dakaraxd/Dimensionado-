@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { restablecerPin } from '../lib/cuentas'
+import { restablecerClave } from '../lib/autorizacion'
 
-const ROLES = { vendedor: 'Vendedor', administrador: 'Administrador', solo_lectura: 'Solo lectura' }
+const ROLES = { vendedor: 'Vendedor', administrador: 'Administrador', subgerente: 'Subgerente', solo_lectura: 'Solo lectura' }
 
 export default function Usuarios() {
   const { profile, user } = useAuth()
@@ -89,10 +90,17 @@ export default function Usuarios() {
   }
 
   const adminsActivos = usuarios.filter(u => u.rol === 'administrador' && u.activo !== false).length
+  // El administrador solo puede crear la primera cuenta de subgerente; después las gestiona un subgerente
+  const haySubgerente = usuarios.some(u => u.rol === 'subgerente')
+  const rolesElegibles = Object.entries(ROLES).filter(([k]) => k !== 'subgerente' || !haySubgerente)
 
   async function guardarEdicion(original) {
     const nombre = editando.nombre.trim()
     if (nombre.length < 2) { setErrorEd('Escribe el nombre'); return }
+    if (original.rol === 'subgerente' && (editando.rol !== original.rol || editando.activo !== (original.activo !== false))) {
+      setErrorEd('Las cuentas de subgerente solo las gestiona un subgerente.')
+      return
+    }
     const esYo = original.id === user?.id
     if (esYo && (editando.rol !== original.rol || editando.activo === false)) {
       setErrorEd('No puedes cambiar tu propio rol ni desactivarte a ti mismo: pídeselo a otro administrador.')
@@ -128,7 +136,16 @@ export default function Usuarios() {
     setExito(`PIN de ${u.nombre} restablecido`)
   }
 
+  async function resetearClave(u) {
+    if (!confirm(`¿Restablecer la clave de autorización de ${u.nombre}? Se borrará su clave y no podrá autorizar cambios de stock hasta que inicie sesión y cree una nueva.`)) return
+    setErrorEd('')
+    const res = await restablecerClave(u.id)
+    if (res.error) { setErrorEd(res.error); return }
+    setExito(`Clave de autorización de ${u.nombre} restablecida`)
+  }
+
   const rolColor = {
+    subgerente: { bg: 'var(--info-soft)', color: 'var(--info)' },
     administrador: { bg: 'var(--purple-soft)', color: 'var(--purple)' },
     vendedor: { bg: 'var(--primary-soft)', color: 'var(--primary)' },
     solo_lectura: { bg: 'var(--bg3)', color: 'var(--text3)' }
@@ -180,8 +197,14 @@ export default function Usuarios() {
               <select value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
                 <option value="vendedor">Vendedor</option>
                 <option value="administrador">Administrador</option>
+                {!haySubgerente && <option value="subgerente">Subgerente</option>}
                 <option value="solo_lectura">Solo lectura</option>
               </select>
+              {!haySubgerente && form.rol === 'subgerente' && (
+                <p style={{ fontSize: '11px', color: 'var(--amber)', marginTop: '6px', lineHeight: 1.4 }}>
+                  Solo puedes crear <strong>una</strong> cuenta de subgerente. Después, las demás las crea un subgerente desde su sesión.
+                </p>
+              )}
             </div>
           </div>
           {error && (
@@ -218,16 +241,24 @@ export default function Usuarios() {
                   </td>
                   <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{u.email}</td>
                   <td style={{ padding: '10px 16px' }}>
-                    <select value={editando.rol} onChange={e => setEditando({ ...editando, rol: e.target.value })}>
-                      {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
+                    {u.rol === 'subgerente' ? (
+                      <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Subgerente 🔒</span>
+                    ) : (
+                      <select value={editando.rol} onChange={e => setEditando({ ...editando, rol: e.target.value })}>
+                        {rolesElegibles.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    )}
                   </td>
                   <td style={{ padding: '10px 16px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editando.activo} style={{ width: '16px', height: '16px' }}
-                        onChange={e => setEditando({ ...editando, activo: e.target.checked })} />
-                      Activo
-                    </label>
+                    {u.rol === 'subgerente' ? (
+                      <span style={{ fontSize: '11px', color: 'var(--text3)' }}>Lo gestiona un subgerente</span>
+                    ) : (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editando.activo} style={{ width: '16px', height: '16px' }}
+                          onChange={e => setEditando({ ...editando, activo: e.target.checked })} />
+                        Activo
+                      </label>
+                    )}
                   </td>
                   <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{new Date(u.creado_en).toLocaleDateString('es-CL')}</td>
                   <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
@@ -267,6 +298,10 @@ export default function Usuarios() {
                       style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginRight: '6px' }}>✏️ Editar</button>
                     <button onClick={() => resetearPin(u)} title="Borra su PIN para que cree uno nuevo"
                       style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px' }}>🔐 Restablecer PIN</button>
+                    {u.rol === 'subgerente' && (
+                      <button onClick={() => resetearClave(u)} title="Borra su clave de autorización para que cree una nueva"
+                        style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginLeft: '6px' }}>🔑 Restablecer clave</button>
+                    )}
                   </td>
                 </tr>
               ))}
