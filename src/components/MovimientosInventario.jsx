@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { PERIODOS, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
+import { PERIODOS_REPORTES, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
+import { traerTodo } from '../lib/paginar'
+
+const LIMITE_FILAS = 300 // filas que se dibujan de una vez (las tarjetas de resumen usan todas)
 import { TIPOS_MOVIMIENTO } from '../lib/movimientos'
 
 const TIPOS_FILTRO = [
@@ -42,6 +45,7 @@ export default function MovimientosInventario({ recarga = 0 }) {
   const [tipo, setTipo] = useState('todos')
   const [plancha, setPlancha] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [limite, setLimite] = useState(LIMITE_FILAS)
 
   const rango = limites(periodo, desde, hasta)
 
@@ -52,14 +56,16 @@ export default function MovimientosInventario({ recarga = 0 }) {
     const ini = rango.desde.toISOString()
     const fin = rango.hasta.toISOString()
     const [mov, ventas] = await Promise.all([
-      supabase.from('movimientos_inventario')
+      // Por páginas: Supabase corta en 1.000 filas y en 1 o 2 años pueden ser más
+      traerTodo((a, b) => supabase.from('movimientos_inventario')
         .select('*, plancha:tipos_plancha!tipo_plancha_id(nombre, medida)')
-        .gte('creado_en', ini).lt('creado_en', fin).order('creado_en', { ascending: false }),
-      supabase.from('ordenes')
+        .gte('creado_en', ini).lt('creado_en', fin).order('creado_en', { ascending: false }).order('id').range(a, b)),
+      traerTodo((a, b) => supabase.from('ordenes')
         .select('id, cantidad, nro_boleta, aprobado_en, cliente_nombre, tipo_plancha_id, tipo:tipos_plancha!tipo_plancha_id(nombre, medida), vendedor:profiles!vendedor_id(nombre)')
-        .eq('estado', 'aprobada').gte('aprobado_en', ini).lt('aprobado_en', fin).order('aprobado_en', { ascending: false }),
+        .eq('estado', 'aprobada').gte('aprobado_en', ini).lt('aprobado_en', fin).order('aprobado_en', { ascending: false }).order('id').range(a, b)),
     ])
     if (mov.error) setError('No se pudieron cargar los movimientos de inventario')
+    else if (ventas.error) setError('No se pudieron cargar las salidas por venta; el resumen puede estar incompleto')
 
     const deMov = (mov.data ?? []).map(m => ({
       id: m.id, fecha: m.creado_en, tipo: m.tipo, planchaId: m.tipo_plancha_id,
@@ -108,14 +114,16 @@ export default function MovimientosInventario({ recarga = 0 }) {
     (plancha === '' || f.planchaId === plancha) &&
     (q === '' || f.plancha.toLowerCase().includes(q) || f.detalle.toLowerCase().includes(q) || (f.usuario ?? '').toLowerCase().includes(q) || (f.autorizo ?? '').toLowerCase().includes(q))
   )
-  const porDia = lista.reduce((acc, f) => { const k = diaDe(f.fecha); (acc[k] ??= []).push(f); return acc }, {})
+  // En períodos largos solo se dibujan las primeras filas; "Mostrar más" agrega otras
+  const listaVisible = lista.slice(0, limite)
+  const porDia = listaVisible.reduce((acc, f) => { const k = diaDe(f.fecha); (acc[k] ??= []).push(f); return acc }, {})
   const hayFiltro = tipo !== 'todos' || plancha !== '' || q !== ''
   const signo = (n) => (n > 0 ? '+' : '') + n
 
   return (
     <div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-        {PERIODOS.map(p => <button key={p.key} style={chip(periodo === p.key)} onClick={() => setPeriodo(p.key)}>{p.label}</button>)}
+        {PERIODOS_REPORTES.map(p => <button key={p.key} style={chip(periodo === p.key)} onClick={() => { setPeriodo(p.key); setLimite(LIMITE_FILAS) }}>{p.label}</button>)}
       </div>
       {periodo === 'rango' && (
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
@@ -199,6 +207,12 @@ export default function MovimientosInventario({ recarga = 0 }) {
                   </div>
                 </div>
               ))}
+              {lista.length > limite && (
+                <button onClick={() => setLimite(l => l + LIMITE_FILAS)}
+                  style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text1)', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: 500 }}>
+                  Mostrar {Math.min(LIMITE_FILAS, lista.length - limite)} más ({lista.length - limite} restantes)
+                </button>
+              )}
             </div>
           )}
         </>
