@@ -70,7 +70,7 @@ const btnPrimario = { background: 'var(--primary)', color: '#fff', border: 'none
 // Editor de cortes: piezas → optimizar → resultado.
 //  - Dentro de una venta recibe onConfirmar / onSinCortes / onVolver.
 //  - Como visor de un proyecto guardado se usa con `soloLectura`.
-export default function EditorCortes({ cliente, plancha, inicial, soloLectura = false, onConfirmar, onSinCortes, onVolver, textoConfirmar = 'Continuar →' }) {
+export default function EditorCortes({ cliente, plancha, inicial, soloLectura = false, onConfirmar, onSinCortes, onVolver, onCambioPiezas, textoConfirmar = 'Continuar →' }) {
   const [piezas, setPiezas] = useState(() => {
     const base = inicial?.piezas ?? []
     return [...base, ...Array.from({ length: Math.max(0, FILAS_INICIALES - base.length) }, filaVacia)]
@@ -95,6 +95,9 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     montado.current = true
     return () => { montado.current = false }
   }, [])
+
+  // Avisa las piezas tal como se van escribiendo (la venta las guarda como borrador)
+  useEffect(() => { onCambioPiezas?.(piezas) }, [piezas]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const piezasValidas = piezas.filter(p => p.cantidad && p.largo && p.ancho)
 

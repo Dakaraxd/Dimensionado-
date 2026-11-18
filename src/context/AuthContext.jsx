@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { borrarTodosLosBorradores } from '../lib/borrador'
 
 const AuthContext = createContext({})
 
@@ -56,6 +57,7 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     // scope local: cerrar sesión en este equipo no debe cerrar la sesión de la persona en sus otros dispositivos
+    borrarTodosLosBorradores() // no dejar datos de clientes a medio llenar en el equipo
     await supabase.auth.signOut({ scope: 'local' })
   }
 
