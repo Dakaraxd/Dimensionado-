@@ -9,3 +9,6 @@
 - Borrador de la orden (localStorage por usuario, solo del día, se borra al cerrar sesión / terminar / descartar).
 - SQL `supabase/migracion_cancelar_pendientes.sql` (pg_cron cada 10 min): cancela pendientes de días anteriores. Rollback incluido. Falta que el usuario lo ejecute.
 - Arreglo: el correo con la letra "s" era rechazado por una expresión regular mal escrita.
+
+## Fase 21 – PDF de la orden al terminar el flujo (en rama)
+- Botón "Descargar PDF de la orden" en la pantalla final de Nueva orden (src/lib/pdfOrden.js). Con y sin cortes, aprobada o en espera.
