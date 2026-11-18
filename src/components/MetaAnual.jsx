@@ -105,7 +105,6 @@ export default function MetaAnual() {
   const [falla, setFalla] = useState(false)
   const [editando, setEditando] = useState(false)
   const esSubgerente = profile?.rol === 'subgerente'
-  const esVendedor = profile?.rol === 'vendedor'
   const [hoy] = useState(() => fechaChile())
 
   const cargar = useCallback(async () => {
@@ -138,7 +137,7 @@ export default function MetaAnual() {
         <p style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5 }}>
           {esSubgerente
             ? `Aún no hay meta para ${m.anio}. Ingresa las planchas vendidas en ${m.anio - 1} para activarla.`
-            : `La meta de ${m.anio} se activa cuando el subgerente ingresa las ventas de ${m.anio - 1}.`}
+            : `La meta de ${m.anio} se activará cuando el subgerente ingrese las ventas de ${m.anio - 1}.`}
         </p>
         {esSubgerente && (
           <button onClick={() => setEditando(true)}
@@ -212,7 +211,7 @@ export default function MetaAnual() {
         <p style={{ fontSize: '13px', color: 'var(--amber)', marginBottom: '8px' }}>⚠️ A este ritmo (~{m.ritmoActualDia.toLocaleString('es-CL')} por día) cerraríamos con unas {nf(m.proyeccionCierre)} planchas. Hay que subir a ~{m.ritmoNecesarioDia?.toLocaleString('es-CL')} por día.</p>
       )}
 
-      {(esVendedor || aporte > 0) && (
+      {aporte > 0 && (
         <p style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '8px' }}>
           🙌 <strong>Tu aporte:</strong> {nf(aporte)} planchas{resumen.total > 0 ? ` (${aportePct}% de lo vendido)` : ''}.
         </p>

@@ -60,8 +60,9 @@ export default function Inicio({ onNavegar }) {
         <p style={{ fontSize: '13px', color: 'var(--text3)' }}>¿Qué quieres hacer?</p>
       </div>
 
-      {/* La meta del año la ve todo el equipo (si la base aún no la tiene, la tarjeta no aparece) */}
-      <MetaAnual />
+      {/* La meta del año la ven solo el administrador y el subgerente (la base también lo exige).
+          Si la base aún no la tiene, la tarjeta no aparece. */}
+      {veTablero && <MetaAnual />}
 
       {veTablero ? (
         <PanelVentas despuesDeTarjetas={accesosRapidos} />
