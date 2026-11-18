@@ -58,15 +58,16 @@ begin
     execute format('alter type public.%I add value if not exists %L', v_tipo, 'subgerente');
   end if;
 
-  -- Si hay restricciones CHECK sobre rol, se reemplazan por una que incluya al subgerente
-  for c in
-    select conname from pg_constraint
-    where conrelid = 'public.profiles'::regclass and contype = 'c'
-      and pg_get_constraintdef(oid) ilike '%rol%'
-  loop
-    execute format('alter table public.profiles drop constraint %I', c.conname);
-  end loop;
+  -- Solo si el rol es texto (no enum): se reemplaza la restricción CHECK de los roles por una
+  -- que incluya al subgerente. Con enum (el caso de esta base) no se toca ninguna restricción.
   if v_tipo is null then
+    for c in
+      select conname from pg_constraint
+      where conrelid = 'public.profiles'::regclass and contype = 'c'
+        and pg_get_constraintdef(oid) ilike '%rol%' and pg_get_constraintdef(oid) ilike '%administrador%'
+    loop
+      execute format('alter table public.profiles drop constraint %I', c.conname);
+    end loop;
     alter table public.profiles
       add constraint profiles_rol_check
       check (rol in ('administrador', 'vendedor', 'solo_lectura', 'subgerente'));
@@ -191,6 +192,10 @@ create trigger trg_aplicar_movimiento
 -- (los triggers de ventas y de movimientos son SECURITY DEFINER y siguen funcionando)
 -- ────────────────────────────────────────────────────────────
 revoke insert, update, delete, truncate on public.stock_general from anon, authenticated;
+
+-- La política que dejaba escribir al administrador ya no tiene efecto (sin permisos no se llega a ella);
+-- se elimina para que nadie la tome por vigente. La lectura sigue con "lectura autenticados".
+drop policy if exists "stock_general: admin escribe" on public.stock_general;
 
 
 -- ────────────────────────────────────────────────────────────
