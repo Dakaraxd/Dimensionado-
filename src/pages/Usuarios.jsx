@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { restablecerPin } from '../lib/cuentas'
+import { restablecerClave } from '../lib/autorizacion'
 
-const ROLES = { vendedor: 'Vendedor', administrador: 'Administrador', solo_lectura: 'Solo lectura' }
+const ROLES = { vendedor: 'Vendedor', administrador: 'Administrador', subgerente: 'Subgerente', solo_lectura: 'Solo lectura' }
 
 export default function Usuarios() {
   const { profile, user } = useAuth()
@@ -128,7 +129,16 @@ export default function Usuarios() {
     setExito(`PIN de ${u.nombre} restablecido`)
   }
 
+  async function resetearClave(u) {
+    if (!confirm(`¿Restablecer la clave de autorización de ${u.nombre}? Se borrará su clave y no podrá autorizar cambios de stock hasta que inicie sesión y cree una nueva.`)) return
+    setErrorEd('')
+    const res = await restablecerClave(u.id)
+    if (res.error) { setErrorEd(res.error); return }
+    setExito(`Clave de autorización de ${u.nombre} restablecida`)
+  }
+
   const rolColor = {
+    subgerente: { bg: 'var(--info-soft)', color: 'var(--info)' },
     administrador: { bg: 'var(--purple-soft)', color: 'var(--purple)' },
     vendedor: { bg: 'var(--primary-soft)', color: 'var(--primary)' },
     solo_lectura: { bg: 'var(--bg3)', color: 'var(--text3)' }
@@ -180,6 +190,7 @@ export default function Usuarios() {
               <select value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
                 <option value="vendedor">Vendedor</option>
                 <option value="administrador">Administrador</option>
+                <option value="subgerente">Subgerente</option>
                 <option value="solo_lectura">Solo lectura</option>
               </select>
             </div>
@@ -267,6 +278,10 @@ export default function Usuarios() {
                       style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginRight: '6px' }}>✏️ Editar</button>
                     <button onClick={() => resetearPin(u)} title="Borra su PIN para que cree uno nuevo"
                       style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px' }}>🔐 Restablecer PIN</button>
+                    {u.rol === 'subgerente' && (
+                      <button onClick={() => resetearClave(u)} title="Borra su clave de autorización para que cree una nueva"
+                        style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginLeft: '6px' }}>🔑 Restablecer clave</button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -30,7 +30,7 @@ export function cuentaDe(userId) {
 }
 
 // Las funciones de servidor responden { error, codigo } con códigos HTTP de error
-async function leerError(error, mensajePorDefecto) {
+export async function leerError(error, mensajePorDefecto) {
   try {
     const cuerpo = await error.context.json()
     return { error: cuerpo?.error ?? mensajePorDefecto, codigo: cuerpo?.codigo }
