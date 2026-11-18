@@ -68,6 +68,7 @@ export default function MovimientosInventario({ recarga = 0 }) {
       antes: m.stock_antes, despues: m.stock_despues,
       detalle: [m.motivo, m.referencia && `Ref: ${m.referencia}`].filter(Boolean).join(' · '),
       usuario: m.usuario_nombre,
+      autorizo: m.autorizado_nombre, // subgerente que autorizó (merma y ajuste)
     }))
     const deVentas = (ventas.data ?? []).map(o => ({
       id: 'v' + o.id, fecha: o.aprobado_en, tipo: 'venta', planchaId: o.tipo_plancha_id,
@@ -105,7 +106,7 @@ export default function MovimientosInventario({ recarga = 0 }) {
   const lista = filas.filter(f =>
     (tipo === 'todos' || f.tipo === tipo) &&
     (plancha === '' || f.planchaId === plancha) &&
-    (q === '' || f.plancha.toLowerCase().includes(q) || f.detalle.toLowerCase().includes(q) || (f.usuario ?? '').toLowerCase().includes(q))
+    (q === '' || f.plancha.toLowerCase().includes(q) || f.detalle.toLowerCase().includes(q) || (f.usuario ?? '').toLowerCase().includes(q) || (f.autorizo ?? '').toLowerCase().includes(q))
   )
   const porDia = lista.reduce((acc, f) => { const k = diaDe(f.fecha); (acc[k] ??= []).push(f); return acc }, {})
   const hayFiltro = tipo !== 'todos' || plancha !== '' || q !== ''
@@ -145,7 +146,7 @@ export default function MovimientosInventario({ recarga = 0 }) {
           </div>
 
           <div style={{ marginBottom: '10px' }}>
-            <input type="text" placeholder="🔍 Buscar por plancha, motivo, referencia o usuario..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+            <input type="text" placeholder="🔍 Buscar por plancha, motivo, referencia, usuario o autorizador..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '18px' }}>
             {TIPOS_FILTRO.map(t => <button key={t.key} style={chip(tipo === t.key)} onClick={() => setTipo(t.key)}>{t.label}</button>)}
@@ -184,6 +185,9 @@ export default function MovimientosInventario({ recarga = 0 }) {
                             <span style={{ display: 'block', fontSize: '12px', color: 'var(--text3)' }}>
                               {[f.detalle, f.usuario && `por ${f.usuario}`].filter(Boolean).join(' · ') || '—'}
                             </span>
+                            {f.autorizo && (
+                              <span style={{ display: 'block', fontSize: '12px', color: 'var(--info)', fontWeight: 500 }}>🔑 Autorizó: {f.autorizo}</span>
+                            )}
                           </span>
                           <span style={{ fontSize: '16px', fontWeight: 700, color: f.efecto < 0 ? 'var(--red)' : 'var(--green)', minWidth: '48px', textAlign: 'right' }}>{signo(f.efecto)}</span>
                           {f.antes !== null && f.despues !== null && (
