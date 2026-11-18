@@ -311,9 +311,195 @@ function empaquetar(piezas, W, H, { ajuste, giro, elegir, reglaDe }) {
   return { planchas, noColocadas }
 }
 
-// Entrega la distribución con menos tableros y, entre las que empatan, la que deja
+// ───────────────────────── Cortes ordenados (en tiras) ─────────────────────────
+// Máximo 3 etapas de corte, para que quien opera la seccionadora haga solo cortes rectos y no tenga
+// que ir girando y reacomodando pedazos:
+//   Etapa 1: cortes de lado a lado de todo el tablero, que sacan TIRAS.
+//   Etapa 2: sobre cada tira, cortes cruzados que sacan COLUMNAS.
+//   Etapa 3: en cada columna, cortes paralelos a los de la etapa 1 que separan las piezas apiladas.
+// Todas las piezas de una columna miden lo mismo de ancho, así no hacen falta recortes extra.
+// Los cortes nunca se encuentran a mitad de camino ni se sobreponen: cada uno cruza todo lo que
+// tiene delante (el tablero, la tira o la columna).
+
+function agruparTipos(piezas) {
+  const mapa = new Map()
+  for (const p of piezas) {
+    const k = `${p.largo}x${p.ancho}x${p.colorIdx}`
+    if (!mapa.has(k)) mapa.set(k, { largo: p.largo, ancho: p.ancho, items: [] })
+    mapa.get(k).items.push(p)
+  }
+  return [...mapa.values()]
+}
+
+function orientacionesDe(tipo, giro) {
+  const o = [{ w: tipo.largo, h: tipo.ancho, rot: false }]
+  if (giro && tipo.largo !== tipo.ancho) o.push({ w: tipo.ancho, h: tipo.largo, rot: true })
+  return o
+}
+
+function elegirConAzar(lista, azar) {
+  if (!azar || lista.length === 1) return lista[0]
+  const u = azar()
+  const k = Math.min(lista.length, 3)
+  const i = k === 2 ? (u < 0.7 ? 0 : 1) : (u < 0.6 ? 0 : u < 0.88 ? 1 : 2)
+  return lista[i]
+}
+
+// Columna: la pieza "líder" fija el ancho; encima y debajo se apilan piezas de EXACTAMENTE ese ancho
+function armarColumna(tipos, cuentas, lider, o, altoTira, giro) {
+  const ancho = o.w
+  const pila = [{ t: lider, w: o.w, h: o.h, rot: o.rot, dy: 0 }]
+  cuentas[lider]--
+  let alto = o.h
+  for (;;) {
+    let mejor = null
+    for (let t = 0; t < tipos.length; t++) {
+      if (cuentas[t] <= 0) continue
+      for (const q of orientacionesDe(tipos[t], giro)) {
+        if (Math.abs(q.w - ancho) > 1e-9 || alto + KERF + q.h > altoTira + EPS) continue
+        if (!mejor || q.h > mejor.q.h) mejor = { t, q }
+      }
+    }
+    if (!mejor) break
+    pila.push({ t: mejor.t, w: mejor.q.w, h: mejor.q.h, rot: mejor.q.rot, dy: alto + KERF })
+    cuentas[mejor.t]--
+    alto += KERF + mejor.q.h
+  }
+  return { ancho, alto, pila, area: pila.reduce((s, p) => s + p.w * p.h, 0) }
+}
+
+// Llena una tira de alto `altoTira` con columnas de izquierda a derecha
+function llenarTira(tipos, cuentasIni, altoTira, W, giro, modoLider, azar) {
+  const cuentas = cuentasIni.slice()
+  const columnas = []
+  let x = 0
+  for (;;) {
+    const libre = W - x
+    const lideres = []
+    for (let t = 0; t < tipos.length; t++) {
+      if (cuentas[t] <= 0) continue
+      for (const o of orientacionesDe(tipos[t], giro)) {
+        if (o.w > libre + EPS || o.h > altoTira + EPS) continue
+        const copia = cuentas.slice()
+        const col = armarColumna(tipos, copia, t, o, altoTira, giro)
+        const densidad = col.area / (col.ancho * altoTira)
+        lideres.push({ col, copia, clave: modoLider === 'densidad' ? [densidad, col.area] : [col.area, densidad] })
+      }
+    }
+    if (!lideres.length) break
+    lideres.sort((a, b) => (b.clave[0] - a.clave[0]) || (b.clave[1] - a.clave[1]))
+    const elegida = elegirConAzar(lideres, azar)
+    columnas.push({ ...elegida.col, x })
+    for (let i = 0; i < cuentas.length; i++) cuentas[i] = elegida.copia[i]
+    x += elegida.col.ancho + KERF
+  }
+  const area = columnas.reduce((s, c) => s + c.area, 0)
+  const alto = columnas.length ? Math.max(...columnas.map(c => c.alto)) : 0
+  return { columnas, area, alto, cuentas }
+}
+
+function mejorTira(tipos, cuentas, altoLibre, W, giro, criterio, modoLider, azar) {
+  const alturas = new Set()
+  tipos.forEach((t, i) => {
+    if (cuentas[i] <= 0) return
+    for (const o of orientacionesDe(t, giro)) if (o.h <= altoLibre + EPS && o.w <= W + EPS) alturas.add(o.h)
+  })
+  const intentos = []
+  for (const altoTira of [...alturas].sort((a, b) => b - a)) {
+    const r = llenarTira(tipos, cuentas, altoTira, W, giro, modoLider, azar)
+    if (!r.columnas.length) continue
+    r.relleno = r.area / (W * r.alto)
+    intentos.push(r)
+  }
+  if (!intentos.length) return null
+  let ordenados
+  if (criterio === 'relleno') ordenados = [...intentos].sort((a, b) => (b.relleno - a.relleno) || (b.area - a.area))
+  else if (criterio === 'alta') {
+    const maxRelleno = Math.max(...intentos.map(r => r.relleno))
+    ordenados = intentos.filter(r => r.relleno >= maxRelleno * 0.88).sort((a, b) => b.alto - a.alto)
+  } else ordenados = [...intentos].sort((a, b) => b.area - a.area)
+  return elegirConAzar(ordenados, azar)
+}
+
+// Tiras horizontales (cortes de la etapa 1 paralelos al lado largo W). Devuelve tableros con sus piezas.
+function empaquetarTiras(piezas, W, H, { giro, criterio, modoLider, azar }) {
+  const tipos = agruparTipos(piezas)
+  const cuentas = tipos.map(t => t.items.length)
+  const planchas = []
+  for (let guardia = 0; cuentas.some(c => c > 0) && guardia < 1000; guardia++) {
+    const plancha = { id: planchas.length + 1, cortes: [] }
+    let y = 0
+    let alguna = false
+    while (cuentas.some(c => c > 0)) {
+      const tira = mejorTira(tipos, cuentas, H - y, W, giro, criterio, modoLider, azar)
+      if (!tira) break
+      for (let i = 0; i < cuentas.length; i++) cuentas[i] = tira.cuentas[i]
+      for (const col of tira.columnas) {
+        for (const p of col.pila) {
+          const pieza = tipos[p.t].items.pop()
+          plancha.cortes.push({ ...pieza, x: col.x, y: y + p.dy, w: p.w, h: p.h, ...(p.rot ? { rotado: true } : {}) })
+        }
+      }
+      y += tira.alto + KERF
+      alguna = true
+    }
+    if (!alguna) return { planchas, noColocadas: tipos.flatMap((t, i) => t.items.slice(0, cuentas[i])) }
+    planchas.push(plancha)
+  }
+  return { planchas, noColocadas: [] }
+}
+
+// Tiras verticales: la misma lógica con el tablero y las piezas traspuestos, y el resultado vuelto a su sitio
+function empaquetarTirasVerticales(piezas, W, H, opciones) {
+  const porClave = new Map(piezas.map(p => [p.key, p]))
+  const traspuestas = piezas.map(p => ({ ...p, largo: p.ancho, ancho: p.largo }))
+  const res = empaquetarTiras(traspuestas, H, W, opciones)
+  const volver = (c) => {
+    const orig = porClave.get(c.key)
+    const x = c.y, y = c.x, w = c.h, h = c.w
+    const rotado = !(Math.abs(w - orig.largo) < 1e-9 && Math.abs(h - orig.ancho) < 1e-9)
+    return { ...orig, x, y, w, h, ...(rotado ? { rotado: true } : {}) }
+  }
+  return {
+    planchas: res.planchas.map(p => ({ id: p.id, cortes: p.cortes.map(volver) })),
+    noColocadas: res.noColocadas.map(c => porClave.get(c.key))
+  }
+}
+
+// Mejor distribución en tiras: menos tableros y, a igualdad, el mejor retazo reutilizable. Es determinista.
+function calcularOrdenado(pendientes, W, H, giro) {
+  const n = pendientes.length
+  const azar = mulberry32(Math.round(W * 13 + H * 29 + n * 5 + pendientes.reduce((s, p) => s + p.largo * 7 + p.ancho * 3, 0)))
+  let mejor = null
+  let mejorPuntaje = null
+  const considerar = (res) => {
+    const clave = [res.noColocadas.length, res.planchas.length]
+    if (!mejor || clave[0] < mejor.clave[0] || (clave[0] === mejor.clave[0] && clave[1] < mejor.clave[1])) {
+      mejor = { res, clave }
+      mejorPuntaje = null
+    } else if (clave[0] === mejor.clave[0] && clave[1] === mejor.clave[1]) {
+      if (mejorPuntaje === null) mejorPuntaje = puntajeSobrante(mejor.res.planchas, W, H)
+      const p = puntajeSobrante(res.planchas, W, H)
+      if (p > mejorPuntaje + EPS) { mejor = { res, clave }; mejorPuntaje = p }
+    }
+  }
+  const generar = (vertical, criterio, modoLider, conAzar) => {
+    const f = vertical ? empaquetarTirasVerticales : empaquetarTiras
+    considerar(f(pendientes, W, H, { giro, criterio, modoLider, azar: conAzar ? azar : null }))
+  }
+  for (const vertical of [false, true]) for (const criterio of CRITERIOS_TIRA) for (const modoLider of ['densidad', 'area']) generar(vertical, criterio, modoLider, false)
+  const iteraciones = Math.max(100, Math.min(400, Math.round(5000 / Math.max(n, 1))))
+  for (let it = 0; it < iteraciones; it++) {
+    generar(azar() < 0.5, CRITERIOS_TIRA[Math.floor(azar() * CRITERIOS_TIRA.length)], azar() < 0.5 ? 'densidad' : 'area', true)
+  }
+  return mejor.res
+}
+
+const CRITERIOS_TIRA = ['relleno', 'alta', 'area']
+
+// Distribución general (guillotina libre): la que menos tableros usa y, entre las que empatan, la que deja
 // el mejor retazo reutilizable. Es determinista: mismos datos, mismo resultado.
-export function calcularDistribucion(cortes, W, H, { permitirGiro = true } = {}) {
+function calcularGeneral(cortes, W, H, permitirGiro) {
   const pendientes = expandirPiezas(cortes)
   const n = pendientes.length
 
@@ -380,4 +566,23 @@ export function calcularDistribucion(cortes, W, H, { permitirGiro = true } = {})
   }
 
   return mejorRes
+}
+
+// Punto de entrada. Por defecto los cortes salen ORDENADOS (en tiras, máximo 3 etapas) siempre que eso no obligue
+// a gastar una plancha más que la mejor distribución general; en ese caso se usa la general y se avisa.
+//   resultado.modo === 'ordenado' | 'general'
+//   resultado.ordenadoNoPosible: se pidió ordenado pero costaba una o más planchas extra
+export function calcularDistribucion(cortes, W, H, { permitirGiro = true, ordenado = true } = {}) {
+  const general = calcularGeneral(cortes, W, H, permitirGiro)
+  if (!ordenado) return { ...general, modo: 'general' }
+  const ord = calcularOrdenado(expandirPiezas(cortes), W, H, permitirGiro)
+  if (ord.noColocadas.length === 0 && general.noColocadas.length === 0 && ord.planchas.length <= general.planchas.length) {
+    return { ...ord, modo: 'ordenado' }
+  }
+  return {
+    ...general,
+    modo: 'general',
+    ordenadoNoPosible: general.noColocadas.length === 0,
+    planchasExtraParaOrdenar: ord.planchas.length - general.planchas.length
+  }
 }
