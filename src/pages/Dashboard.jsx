@@ -47,7 +47,10 @@ const GRUPOS = [
   {
     titulo: 'Subgerencia',
     soloSubgerente: true,
-    items: [{ key: 'subgerentes', icon: '🔑', label: 'Subgerentes' }],
+    items: [
+      { key: 'logs', icon: '🔍', label: 'Actividad' },
+      { key: 'subgerentes', icon: '🔑', label: 'Subgerentes' },
+    ],
   },
 ]
 
@@ -211,7 +214,7 @@ export default function Dashboard() {
           {pagina === 'reportes' && <Reportes key={subReportes} tabInicial={subReportes} onNuevaOrden={() => navegar('venta')} />}
           {pagina === 'planchas' && esAdmin && <Planchas />}
           {pagina === 'usuarios' && esAdmin && <Usuarios />}
-          {pagina === 'logs' && esAdmin && <Actividad />}
+          {pagina === 'logs' && (esAdmin || esSubgerente) && <Actividad />}
           {pagina === 'subgerentes' && esSubgerente && <Subgerentes />}
         </main>
       </div>

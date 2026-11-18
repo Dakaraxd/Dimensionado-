@@ -4,13 +4,24 @@ import { BLOQUEO_MINUTOS, generarSal, hashPin, igualesConstante, MAX_INTENTOS } 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TIPOS = ['ingreso', 'merma', 'devolucion', 'ajuste']
 const EXIGEN_MOTIVO = ['merma', 'devolucion', 'ajuste']
+// Solo estos movimientos necesitan la clave de un subgerente (ingreso y devolución no)
+const EXIGEN_AUTORIZACION = ['merma', 'ajuste']
 const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? '' : 's'}`
 
 // deno-lint-ignore no-explicit-any
 export type Admin = any
 
-// La clave de autorización: de 6 a 64 caracteres
-export const claveValida = (c: unknown): c is string => typeof c === 'string' && c.length >= 6 && c.length <= 64
+// La clave de autorización: exactamente 6 dígitos y que no sea evidente (000000, 123456, 654321...).
+// Solo se exige al CREAR o CAMBIAR la clave; al verificar se acepta cualquier texto, para que las
+// claves creadas antes con otras reglas sigan funcionando hasta que su dueño las cambie.
+export function claveValida(c: unknown): c is string {
+  if (typeof c !== 'string' || !/^\d{6}$/.test(c)) return false
+  if (/^(\d)\1+$/.test(c)) return false
+  const d = [...c].map(Number)
+  const sube = d.every((v, i) => i === 0 || v === d[i - 1] + 1)
+  const baja = d.every((v, i) => i === 0 || v === d[i - 1] - 1)
+  return !(sube || baja)
+}
 
 // Mensajes de la base que se pueden mostrar tal cual (los demás se resumen)
 const MENSAJE_SEGURO = /Stock insuficiente|mayor que lo vendido|No existe stock/i
@@ -50,11 +61,12 @@ async function verificarClave(admin: Admin, subgerenteId: string, clave: string,
 }
 
 // Requiere sesión iniciada: `usuarioId` viene de un JWT ya verificado.
-//   lista        (administrador)  → subgerentes activos que ya tienen clave
+//   lista        (administrador o vendedor) → subgerentes activos que ya tienen clave
 //   estado       (subgerente)     → ¿ya tengo clave?
-//   definir      (subgerente)     → crea o cambia SU clave (pide la actual si ya tiene)
+//   definir      (subgerente)     → crea o cambia SU clave (6 dígitos; pide la actual si ya tiene)
 //   restablecer  (administrador)  → borra la clave de un subgerente (la olvidó)
-//   movimiento   (administrador)  → registra un movimiento de inventario con la clave de un subgerente
+//   movimiento   (administrador o vendedor) → registra un movimiento de inventario;
+//                 merma y ajuste exigen la clave de un subgerente, ingreso y devolución no
 //   lista_subgerentes / estado_subgerente (subgerente) → ver y activar/desactivar cuentas de subgerente
 export async function manejar(req: Request, admin: Admin, usuarioId: string, ahora = new Date()): Promise<Response> {
   try {
@@ -64,9 +76,11 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
     const { data: yo } = await admin.from('profiles').select('rol, nombre, activo').eq('id', usuarioId).maybeSingle()
     if (!yo || yo.activo === false) return json({ error: 'Tu cuenta no está activa.' }, 403)
     const esAdmin = yo.rol === 'administrador'
+    // Pueden registrar movimientos de inventario (algunos con la clave de un subgerente)
+    const puedeMoverStock = esAdmin || yo.rol === 'vendedor'
 
     if (accion === 'lista') {
-      if (!esAdmin) return json({ error: 'No tienes permiso.' }, 403)
+      if (!puedeMoverStock) return json({ error: 'No tienes permiso.' }, 403)
       const { data: perfiles } = await admin.from('profiles').select('id, nombre, rol, activo').eq('rol', 'subgerente')
       const { data: claves } = await admin.from('clave_subgerente').select('user_id')
       const conClave = new Set((claves ?? []).map((c: { user_id: string }) => c.user_id))
@@ -113,7 +127,7 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
 
     if (accion === 'definir') {
       if (yo.rol !== 'subgerente') return json({ error: 'Solo un subgerente puede crear su clave.' }, 403)
-      if (!claveValida(cuerpo.clave)) return json({ error: 'La clave debe tener al menos 6 caracteres.' }, 400)
+      if (!claveValida(cuerpo.clave)) return json({ error: 'La clave debe tener 6 números y no ser evidente (por ejemplo 123456 o 000000).' }, 400)
       const { data: existente } = await admin.from('clave_subgerente')
         .select('clave_salt, clave_hash, intentos, bloqueado_hasta').eq('user_id', usuarioId).maybeSingle()
       if (existente) {
@@ -149,15 +163,12 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
     }
 
     if (accion === 'movimiento') {
-      if (!esAdmin) return json({ error: 'Solo un administrador puede registrar movimientos de inventario.' }, 403)
+      if (!puedeMoverStock) return json({ error: 'No tienes permiso para registrar movimientos de inventario.' }, 403)
       const { subgerente_id, clave, tipo_plancha_id, tipo } = cuerpo
       const motivo = typeof cuerpo.motivo === 'string' ? cuerpo.motivo.trim() : ''
       const referencia = typeof cuerpo.referencia === 'string' ? cuerpo.referencia.trim() : ''
       const cantidad = cuerpo.cantidad
 
-      if (typeof subgerente_id !== 'string' || !UUID.test(subgerente_id) || typeof clave !== 'string' || !clave) {
-        return json({ error: 'Elige al subgerente e ingresa su clave.' }, 400)
-      }
       if (typeof tipo_plancha_id !== 'string' || !UUID.test(tipo_plancha_id)) return json({ error: 'Plancha no válida.' }, 400)
       if (!TIPOS.includes(tipo)) return json({ error: 'Tipo de movimiento no válido.' }, 400)
       if (!Number.isInteger(cantidad) || cantidad === 0 || Math.abs(cantidad) > 100000 || (tipo !== 'ajuste' && cantidad < 0)) {
@@ -166,12 +177,23 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
       if (EXIGEN_MOTIVO.includes(tipo) && motivo.length < 3) return json({ error: 'Indica el motivo (mínimo 3 letras).' }, 400)
       if (motivo.length > 300 || referencia.length > 300) return json({ error: 'El motivo o la referencia es demasiado largo.' }, 400)
 
-      const v = await verificarClave(admin, subgerente_id, clave, ahora)
-      if (!v.ok) return v.respuesta
+      // Merma y ajuste necesitan la clave de un subgerente; ingreso y devolución no
+      const requiereClave = EXIGEN_AUTORIZACION.includes(tipo)
+      let autorizadoPor: string | null = null
+      let autorizadoNombre: string | undefined
+      if (requiereClave) {
+        if (typeof subgerente_id !== 'string' || !UUID.test(subgerente_id) || typeof clave !== 'string' || !clave) {
+          return json({ error: 'Elige al subgerente e ingresa su clave.' }, 400)
+        }
+        const v = await verificarClave(admin, subgerente_id, clave, ahora)
+        if (!v.ok) return v.respuesta
+        autorizadoPor = subgerente_id
+        autorizadoNombre = v.nombre
+      }
 
       const { error } = await admin.from('movimientos_inventario').insert({
         tipo_plancha_id, tipo, cantidad, motivo: motivo || null, referencia: referencia || null,
-        usuario_id: usuarioId, autorizado_por: subgerente_id,
+        usuario_id: usuarioId, autorizado_por: autorizadoPor,
       })
       if (error) {
         const m = String(error.message ?? '')
@@ -183,11 +205,11 @@ export async function manejar(req: Request, admin: Admin, usuarioId: string, aho
       await admin.from('logs').insert({
         usuario_id: usuarioId, usuario_nombre: yo.nombre, accion: 'EDITAR', entidad: 'stock',
         detalle: {
-          movimiento: tipo, cantidad, tipo_plancha_id, autorizado_por: v.nombre,
+          movimiento: tipo, cantidad, tipo_plancha_id, autorizado_por: autorizadoNombre,
           plancha: pl ? `${pl.nombre} ${pl.medida ?? ''}`.trim() : undefined,
         }
       })
-      return json({ ok: true, autorizado_por: v.nombre })
+      return json({ ok: true, autorizado_por: autorizadoNombre ?? null })
     }
 
     return json({ error: 'Acción no válida.' }, 400)

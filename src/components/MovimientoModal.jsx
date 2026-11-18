@@ -20,7 +20,13 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
   const [subgerenteId, setSubgerenteId] = useState('')
   const [clave, setClave] = useState('')
 
+  const t = TIPOS_MOVIMIENTO[tipo]
+  // Solo la merma y el ajuste necesitan la clave de un subgerente
+  const requiereClave = !!t.requiereSubgerente
+
+  // La lista de subgerentes se pide la primera vez que hace falta
   useEffect(() => {
+    if (!requiereClave || subgerentes !== null) return
     let cancelado = false
     listarSubgerentes().then(r => {
       if (cancelado) return
@@ -28,9 +34,7 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
       if (r.error) setError(r.error)
     })
     return () => { cancelado = true }
-  }, [])
-
-  const t =TIPOS_MOVIMIENTO[tipo]
+  }, [requiereClave, subgerentes])
   const s = stocks.find(x => x.tipo_plancha_id === planchaId) ?? null
   const esNuevo = !s && sinStock.some(x => x.id === planchaId)
 
@@ -57,8 +61,10 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
       if (tipo === 'devolucion' && (!s || c > s.vendido)) return `La devolución no puede superar lo vendido (${s?.vendido ?? 0})`
     }
     if (t.exigeMotivo && motivo.trim().length < 3) return 'Indica el motivo (mínimo 3 letras)'
-    if (!subgerenteId) return 'Elige al subgerente que autoriza'
-    if (!clave) return 'Ingresa la clave del subgerente'
+    if (requiereClave) {
+      if (!subgerenteId) return 'Elige al subgerente que autoriza'
+      if (!clave) return 'Ingresa la clave del subgerente'
+    }
     return ''
   }
 
@@ -69,8 +75,8 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
     setGuardando(true)
     setError('')
     const res = await registrarMovimientoAutorizado({
-      subgerenteId,
-      clave,
+      subgerenteId: requiereClave ? subgerenteId : undefined,
+      clave: requiereClave ? clave : undefined,
       tipoPlanchaId: planchaId,
       tipo,
       cantidad: tipo === 'ajuste' ? delta : entero(cantidad),
@@ -139,25 +145,29 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
         <label style={label}>Referencia (opcional)</label>
         <input type="text" value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="Nº de guía, factura o boleta" />
 
-        <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginTop: '14px' }}>
-          <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>🔑 Autorización de subgerente</p>
-          {subgerentes !== null && subgerentes.length === 0 ? (
-            <p style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.5 }}>
-              Aún no hay subgerentes con clave. Crea el usuario en <strong>Usuarios</strong> con rol Subgerente y pídele que cree su clave.
-            </p>
-          ) : (
-            <>
-              <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '10px' }}>Un subgerente debe escribir su clave para modificar el stock.</p>
-              <label style={label}>Subgerente *</label>
-              <select value={subgerenteId} onChange={e => { setSubgerenteId(e.target.value); setError('') }} style={{ marginBottom: '10px' }} disabled={subgerentes === null}>
-                <option value="">{subgerentes === null ? 'Cargando...' : 'Selecciona...'}</option>
-                {(subgerentes ?? []).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-              </select>
-              <label style={label}>Clave del subgerente *</label>
-              <input type="password" autoComplete="off" maxLength={64} value={clave} onChange={e => { setClave(e.target.value); setError('') }} />
-            </>
-          )}
-        </div>
+        {requiereClave && (
+          <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginTop: '14px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>🔑 Autorización de subgerente</p>
+            {subgerentes !== null && subgerentes.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.5 }}>
+                Aún no hay subgerentes con clave. Un subgerente debe iniciar sesión y crear su clave de stock.
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '10px' }}>
+                  {tipo === 'merma' ? 'La merma' : 'El ajuste'} necesita que un subgerente escriba su clave.
+                </p>
+                <label style={label}>Subgerente *</label>
+                <select value={subgerenteId} onChange={e => { setSubgerenteId(e.target.value); setError('') }} style={{ marginBottom: '10px' }} disabled={subgerentes === null}>
+                  <option value="">{subgerentes === null ? 'Cargando...' : 'Selecciona...'}</option>
+                  {(subgerentes ?? []).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+                <label style={label}>Clave del subgerente *</label>
+                <input type="password" inputMode="numeric" autoComplete="off" maxLength={64} value={clave} onChange={e => { setClave(e.target.value); setError('') }} />
+              </>
+            )}
+          </div>
+        )}
 
         {disponibleDespues !== null && planchaId && (
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '10px 14px', marginTop: '14px', fontSize: '13px' }}>
