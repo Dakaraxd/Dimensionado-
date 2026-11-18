@@ -137,8 +137,6 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
       const margin = 15
       const anchoTabla = pageW - margin * 2
       const rgb = (hex) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
-      const etiquetaPieza = (c, i) => c.nombre || `P${i + 1}` // la misma etiqueta que lleva el diagrama
-      const num = (n) => String(Math.round(n * 10) / 10)
       const estiloTabla = {
         margin: { left: margin, right: margin }, styles: { fontSize: 8, cellPadding: 1.8, textColor: [31, 41, 55] },
         headStyles: { fillColor: [236, 238, 242], textColor: [107, 114, 128], fontStyle: 'bold' },
@@ -150,7 +148,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         }
       }
 
-      // ── Primera hoja: datos, resumen y detalle de todos los cortes ──
+      // ── Primera hoja: datos, resumen y piezas solicitadas ──
       pdf.setFontSize(16); pdf.setFont('helvetica', 'bold')
       pdf.setTextColor(31, 41, 55)
       pdf.text('Informe de Dimensionado', margin, 22)
@@ -206,22 +204,6 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
         body: piezasValidas.map((p, i) => [i + 1, p.cantidad, p.nombre || '—', p.largo, p.ancho]),
         columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 16 }, 3: { halign: 'right' }, 4: { halign: 'right' } },
       })
-      y = pdf.lastAutoTable.finalY + 8
-
-      if (resultado) {
-        titulo('DETALLE DE TODOS LOS CORTES')
-        const filas = []
-        resultado.forEach((tablero, pi) => tablero.cortes.forEach((c, ci) => {
-          filas.push(Object.assign(['', `Tablero ${pi + 1}`, etiquetaPieza(c, ci), c.largo ?? c.w, c.ancho ?? c.h, c.rotado ? 'Sí' : 'No', `${num(c.x)}, ${num(c.y)}`], { colorIdx: c.colorIdx }))
-        }))
-        autoTable(pdf, {
-          ...estiloTabla, styles: { ...estiloTabla.styles, cellPadding: 1.3 },
-          startY: y, theme: 'grid', tableWidth: anchoTabla,
-          head: [['', 'Tablero', 'Pieza', 'Largo (cm)', 'Ancho (cm)', 'Giro', 'Ubicación x, y (cm)']],
-          body: filas, didParseCell: pintarColor,
-          columnStyles: { 0: { cellWidth: 8 }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'center' } },
-        })
-      }
 
       // ── Una hoja por tablero: diagrama en 2D y la tabla con los cortes de ese tablero ──
       if (resultado && diagramaRef.current) {
@@ -241,7 +223,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           if (svgs[pi]) {
             const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })
             const img = canvas.toDataURL('image/png')
-            const dispW = 180, dispH = 118 // el diagrama deja lugar a la tabla de cortes debajo
+            const dispW = 180, dispH = 135 // el diagrama deja lugar a la tabla de cortes debajo
             const ratio = dimensiones.h / dimensiones.w
             let iW = dispW, iH = iW * ratio
             if (iH > dispH) { iH = dispH; iW = iH / ratio }
@@ -249,13 +231,25 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
             finDiagrama = 38 + iH
           }
 
+          // Cortes de este tablero: cantidad, largo y ancho; los cortes iguales se juntan en una sola fila
+          const grupos = new Map()
+          tablero.cortes.forEach(c => {
+            const largo = c.largo ?? c.w, ancho = c.ancho ?? c.h
+            const clave = `${largo}x${ancho}x${c.colorIdx}`
+            const g = grupos.get(clave)
+            if (g) g.cantidad += 1
+            else grupos.set(clave, { cantidad: 1, largo, ancho, colorIdx: c.colorIdx })
+          })
+          const filasTablero = [...grupos.values()]
           autoTable(pdf, {
-            ...estiloTabla, styles: { ...estiloTabla.styles, fontSize: 7.5, cellPadding: 1.1 }, // compacta: caben ~20 piezas en la hoja
-            startY: finDiagrama + 5, theme: 'grid', tableWidth: anchoTabla,
-            head: [['', 'Pieza', 'Largo (cm)', 'Ancho (cm)', 'Giro', 'Ubicación x, y (cm)']],
-            body: tablero.cortes.map((c, ci) => Object.assign(['', etiquetaPieza(c, ci), c.largo ?? c.w, c.ancho ?? c.h, c.rotado ? 'Sí' : 'No', `${num(c.x)}, ${num(c.y)}`], { colorIdx: c.colorIdx })),
+            ...estiloTabla, styles: { ...estiloTabla.styles, fontSize: 9, cellPadding: 1.6 },
+            startY: finDiagrama + 6, theme: 'grid', tableWidth: anchoTabla,
+            head: [['', 'Cant.', 'Largo (cm)', 'Ancho (cm)']],
+            body: filasTablero.map(g => Object.assign(['', g.cantidad, g.largo, g.ancho], { colorIdx: g.colorIdx })),
+            foot: [['', tablero.cortes.length, 'Total de piezas en este tablero', '']],
+            footStyles: { fillColor: [236, 238, 242], textColor: [31, 41, 55], fontStyle: 'bold' },
             didParseCell: pintarColor,
-            columnStyles: { 0: { cellWidth: 8 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'center' } },
+            columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 22, halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
           })
         }
       }
