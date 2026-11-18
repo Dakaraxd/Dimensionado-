@@ -222,3 +222,16 @@ button { cursor: pointer; font-family: inherit; }
   padding: 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
+
+/* Meta anual: la barra se llena con suavidad y, al cumplirla, cae confeti (se apaga con "reducir movimiento") */
+.meta-barra { transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes confeti-caer {
+  0%   { transform: translateY(-24px) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translateY(190px) rotate(540deg); opacity: 0; }
+}
+.confeti { position: absolute; top: 0; font-size: 16px; opacity: 0; animation: confeti-caer 2.6s ease-out 1 forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .meta-barra { transition: none; }
+  .confeti { display: none; }
+}
