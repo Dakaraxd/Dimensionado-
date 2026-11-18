@@ -84,7 +84,8 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   const diagramaRef = useRef(null)
   const tablaRef = useRef(null)
   const focoPendiente = useRef(null) // casilla a enfocar cuando aparezca una fila nueva
-  const [enfoque, setEnfoque] = useState(null) // casilla de medida que se está escribiendo
+  const [enfoque, setEnfoque] = useState(null) // casilla de medida en foco; `tecleado` = ya se escribió algo desde que entró
+  const [aviso, setAviso] = useState(null) // piezas por debajo de la medida mínima de seguridad (pantalla de aviso)
   const montado = useRef(true) // evita actualizar la pantalla si se salió del editor mientras se calculaba
   useEffect(() => {
     montado.current = true
@@ -124,6 +125,22 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
     enfocar(fila, campo)
   }, [piezas.length])
 
+  // Cierra el aviso de seguridad y deja el cursor en la medida que hay que corregir
+  function cerrarAviso() {
+    const primera = aviso?.[0]
+    setAviso(null)
+    if (primera) setTimeout(() => enfocar(primera.fila, primera.campo), 0)
+  }
+
+  // Esc también cierra el aviso
+  useEffect(() => {
+    if (!aviso) return
+    const alTeclear = (e) => { if (e.key === 'Escape') cerrarAviso() }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aviso])
+
   // Teclado de la tabla: Enter avanza cantidad → largo → ancho y de ahí a la cantidad de la fila siguiente
   // (el nombre y el borrado no forman parte del recorrido). Enter nunca borra ni envía nada.
   function alTeclear(e, fila, campo, bloqueadas) {
@@ -147,13 +164,19 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
   async function calcular() {
     if (calculando) return
     setError('')
-    if (piezasValidas.length === 0) { setError('Ingresa al menos una pieza con cantidad, largo y ancho'); return }
-    // Medida mínima de seguridad: ninguna pieza puede quedar por debajo (10 × 30 cm)
-    const filaMenor = piezas.findIndex(p => evaluarMedidaMinima(p.largo, p.ancho).invalida)
-    if (filaMenor >= 0) {
-      setError(`La pieza ${filaMenor + 1} está por debajo de la medida mínima de seguridad (${CORTE_MIN_LADO} × ${CORTE_MIN_LARGO} cm). Corrígela o elimínala para continuar.`)
+    // Medida mínima de seguridad: ninguna pieza puede quedar por debajo (10 × 30 cm).
+    // Se revisa primero y se avisa con una pantalla; no se calcula nada hasta corregirlo.
+    const bajoElMinimo = piezas
+      .map((p, i) => ({ fila: i, p, ev: evaluarMedidaMinima(p.largo, p.ancho) }))
+      .filter(x => x.ev.invalida)
+      .map(x => ({ fila: x.fila, largo: x.p.largo, ancho: x.p.ancho, campo: x.ev.largo ? 'largo' : 'ancho' }))
+    if (bajoElMinimo.length > 0) {
+      // El texto en rojo se mantiene bajo la tabla y, además, se muestra la pantalla de aviso
+      setError(`La pieza ${bajoElMinimo[0].fila + 1} está por debajo de la medida mínima de seguridad (${CORTE_MIN_LADO} × ${CORTE_MIN_LARGO} cm). Corrígela o elimínala para continuar.`)
+      setAviso(bajoElMinimo)
       return
     }
+    if (piezasValidas.length === 0) { setError('Ingresa al menos una pieza con cantidad, largo y ancho'); return }
     const { w: W, h: H } = dimensiones
     for (const p of piezasValidas) {
       const l = parseFloat(p.largo)
@@ -403,7 +426,7 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
               {piezas.map((p, i) => {
                 const medida = evaluarMedidaMinima(p.largo, p.ancho)
                 // Mientras se escribe una medida de un solo dígito (el "2" de "25") no se pinta de rojo hasta salir de la casilla
-                const escribiendo = (campo) => enfoque?.fila === i && enfoque?.campo === campo && parseFloat(p[campo]) < CORTE_MIN_LADO
+                const escribiendo = (campo) => enfoque?.fila === i && enfoque?.campo === campo && enfoque?.tecleado && parseFloat(p[campo]) < CORTE_MIN_LADO
                 const rojoLargo = medida.largo && !escribiendo('largo')
                 const rojoAncho = medida.ancho && !escribiendo('ancho')
                 const rojo = (activo) => (activo ? { borderColor: 'var(--red)', background: 'var(--red-soft)', color: 'var(--red)' } : {})
@@ -419,18 +442,18 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
                       </td>
                       <td style={{ padding: '6px 8px' }}>
                         <input type="number" min="1" max={dimensiones.w} value={p.largo} data-fila={i} data-campo="largo"
-                          onChange={e => actualizarPieza(i, 'largo', e.target.value.replace(/[^0-9.]/g, ''))}
+                          onChange={e => { setEnfoque(f => (f ? { ...f, tecleado: true } : f)); actualizarPieza(i, 'largo', e.target.value.replace(/[^0-9.]/g, '')) }}
                           onKeyDown={e => alTeclear(e, i, 'largo', ['e', 'E', '+', '-'])}
-                          onFocus={() => setEnfoque({ fila: i, campo: 'largo' })} onBlur={() => setEnfoque(null)}
+                          onFocus={() => setEnfoque({ fila: i, campo: 'largo', tecleado: false })} onBlur={() => setEnfoque(null)}
                           aria-invalid={rojoLargo}
                           placeholder="cm"
                           style={{ width: '80px', padding: '6px 8px', fontSize: '12px', ...rojo(rojoLargo) }} />
                       </td>
                       <td style={{ padding: '6px 8px' }}>
                         <input type="number" min="1" max={dimensiones.h} value={p.ancho} data-fila={i} data-campo="ancho"
-                          onChange={e => actualizarPieza(i, 'ancho', e.target.value.replace(/[^0-9.]/g, ''))}
+                          onChange={e => { setEnfoque(f => (f ? { ...f, tecleado: true } : f)); actualizarPieza(i, 'ancho', e.target.value.replace(/[^0-9.]/g, '')) }}
                           onKeyDown={e => alTeclear(e, i, 'ancho', ['e', 'E', '+', '-'])}
-                          onFocus={() => setEnfoque({ fila: i, campo: 'ancho' })} onBlur={() => setEnfoque(null)}
+                          onFocus={() => setEnfoque({ fila: i, campo: 'ancho', tecleado: false })} onBlur={() => setEnfoque(null)}
                           aria-invalid={rojoAncho}
                           placeholder="cm"
                           style={{ width: '80px', padding: '6px 8px', fontSize: '12px', ...rojo(rojoAncho) }} />
@@ -482,6 +505,34 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
           </div>
         </div>
         {calculando && <CalculandoCortes />}
+        {aviso && (
+          <div className="modal-fondo" onMouseDown={e => { if (e.target === e.currentTarget) cerrarAviso() }}>
+            <div className="modal-caja" role="alertdialog" aria-modal="true" aria-labelledby="aviso-seguridad-titulo" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '40px', lineHeight: 1, marginBottom: '8px' }} aria-hidden="true">⚠️</div>
+              <h3 id="aviso-seguridad-titulo" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--red)', marginBottom: '10px' }}>Medida no permitida por seguridad</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text1)', lineHeight: 1.5, marginBottom: '12px' }}>
+                {aviso.length === 1
+                  ? 'Por seguridad, uno de los cortes no cumple con las medidas mínimas permitidas.'
+                  : `Por seguridad, ${aviso.length} de los cortes no cumplen con las medidas mínimas permitidas.`}
+              </p>
+              <div style={{ background: 'var(--red-soft)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', textAlign: 'left' }}>
+                {aviso.slice(0, 5).map(a => (
+                  <p key={a.fila} style={{ fontSize: '13px', color: 'var(--red)', fontWeight: 600 }}>
+                    Pieza {a.fila + 1}: {a.largo || '—'} × {a.ancho || '—'} cm
+                  </p>
+                ))}
+                {aviso.length > 5 && <p style={{ fontSize: '12px', color: 'var(--red)' }}>y {aviso.length - 5} más…</p>}
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5, marginBottom: '16px' }}>
+                La medida mínima de un corte es de <strong>{CORTE_MIN_LADO} × {CORTE_MIN_LARGO} cm</strong>. Corrígela o elimina esa pieza para continuar.
+              </p>
+              <button type="button" autoFocus onClick={cerrarAviso}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 28px', fontSize: '14px', fontWeight: 600 }}>
+                Entendido
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
