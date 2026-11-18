@@ -30,6 +30,7 @@ export default function NuevaVenta({ onNavegar }) {
   // Avance guardado de una orden a medio hacer (se recupera al volver a esta pantalla)
   const [b0] = useState(() => leerBorrador(profile?.id))
   const [recuperada, setRecuperada] = useState(!!b0) // muestra el aviso de "orden recuperada"
+  const [confirmandoDescarte, setConfirmandoDescarte] = useState(false)
   const [paso, setPaso] = useState(b0?.paso && b0.paso !== 'listo' ? b0.paso : 'cliente') // cliente | plancha | cortes | dia | boleta | listo
   const [cliente, setCliente] = useState({ rut: '', nombre: '', telefono: '', email: '', ...(b0?.cliente ?? {}) })
   const [plancha, setPlancha] = useState(b0?.plancha ?? null)
@@ -158,9 +159,10 @@ export default function NuevaVenta({ onNavegar }) {
     setBorradorPiezas(llenas.length ? llenas : null)
   }, [])
 
+  // Confirmación dentro de la pantalla (el cuadro nativo confirm() lo bloquean algunos navegadores)
   function descartarBorrador() {
-    if (!confirm('¿Descartar la orden en curso y empezar de nuevo? Se borrarán los datos ingresados.')) return
     borrarBorrador(profile?.id)
+    setConfirmandoDescarte(false)
     reiniciar()
   }
 
@@ -389,10 +391,23 @@ export default function NuevaVenta({ onNavegar }) {
 
       {recuperada && (
         <div role="status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', background: 'var(--amber-soft)', border: '1px solid rgba(180,83,9,0.3)', borderRadius: '12px', padding: '10px 16px', marginBottom: '16px' }}>
-          <p style={{ fontSize: '13px', color: 'var(--amber)', lineHeight: 1.5 }}>💾 <strong>Recuperamos tu orden en curso.</strong> Puedes seguir donde la dejaste.</p>
+          <p style={{ fontSize: '13px', color: 'var(--amber)', lineHeight: 1.5 }}>
+            {confirmandoDescarte
+              ? <>🗑️ <strong>¿Descartar esta orden?</strong> Se borrarán todos los datos ingresados.</>
+              : <>💾 <strong>Recuperamos tu orden en curso.</strong> Puedes seguir donde la dejaste.</>}
+          </p>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => setRecuperada(false)} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px' }}>Entendido</button>
-            <button onClick={descartarBorrador} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px', color: 'var(--red)' }}>Descartar y empezar de nuevo</button>
+            {confirmandoDescarte ? (
+              <>
+                <button type="button" onClick={() => setConfirmandoDescarte(false)} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px' }}>No, seguir con la orden</button>
+                <button type="button" onClick={descartarBorrador} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px', background: 'var(--red)', color: '#fff', border: 'none' }}>Sí, descartar</button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setRecuperada(false)} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px' }}>Entendido</button>
+                <button type="button" onClick={() => setConfirmandoDescarte(true)} style={{ ...btnSecundario, padding: '6px 12px', fontSize: '12px', color: 'var(--red)' }}>Descartar y empezar de nuevo</button>
+              </>
+            )}
           </div>
         </div>
       )}
