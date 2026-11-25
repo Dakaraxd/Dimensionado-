@@ -197,7 +197,7 @@ export default function Dimensionador({ onNuevaVenta }) {
             </p>
           )}
           {proyectosFiltrados.map(p => (
-            <div key={p.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div key={p.id} className="elevar" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
                   <p style={{ fontSize: '15px', fontWeight: '500' }}>{p.cliente_nombre}</p>

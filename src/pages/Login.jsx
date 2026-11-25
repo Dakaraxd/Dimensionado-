@@ -51,7 +51,7 @@ export default function Login() {
       justifyContent: 'center',
       padding: '20px'
     }}>
-      <div style={{
+      <div className="entrada" style={{
         background: 'var(--bg2)',
         border: '1px solid var(--border)',
         borderRadius: '16px',

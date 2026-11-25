@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { cuentaDe } from '../lib/cuentas'
 import CambiarUsuario from '../components/CambiarUsuario'
@@ -16,6 +16,7 @@ import Reportes from './Reportes'
 import Tablero from './Tablero'
 import Actividad from './Actividad'
 import NuevaVenta from './NuevaVenta'
+import { activarRevelado } from '../lib/revelar'
 
 // Los módulos se agrupan siguiendo el flujo de trabajo: stock → orden → salida → seguimiento.
 const GRUPOS = [
@@ -57,6 +58,8 @@ const GRUPOS = [
 export default function Dashboard() {
   const { user, profile, signOut } = useAuth()
   const [pagina, setPagina] = useState('inicio')
+  const paginaRef = useRef(null) // contenedor de la pantalla actual: sus secciones se revelan al hacer scroll
+  useLayoutEffect(() => activarRevelado(paginaRef.current), [])
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectorAbierto, setSelectorAbierto] = useState(false)
   const [subReportes, setSubReportes] = useState('ventas')
@@ -206,6 +209,7 @@ export default function Dashboard() {
                 style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px' }}>Ahora no</button>
             </div>
           )}
+          <div className="pagina" ref={paginaRef}>
           {pagina === 'inicio' && <Inicio onNavegar={navegar} />}
           {pagina === 'venta' && puedeOperar && <NuevaVenta onNavegar={navegar} />}
           {pagina === 'stock' && <Stock />}
@@ -216,6 +220,7 @@ export default function Dashboard() {
           {pagina === 'usuarios' && esAdmin && <Usuarios />}
           {pagina === 'logs' && (esAdmin || esSubgerente) && <Actividad />}
           {pagina === 'subgerentes' && esSubgerente && <Subgerentes />}
+          </div>
         </main>
       </div>
 

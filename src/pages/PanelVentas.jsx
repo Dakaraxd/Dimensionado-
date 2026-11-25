@@ -5,6 +5,8 @@ import {
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { aYMD } from '../lib/fechas'
+import NumeroAnimado from '../components/NumeroAnimado'
+import Revelar, { SoloVisible } from '../components/Revelar'
 
 const COLORES_BARRAS = ['#e30613', '#004b9b', '#f5b800', '#15803d', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
 const COLOR_PRIMARIO = '#e30613'
@@ -41,12 +43,12 @@ function TooltipPersonalizado({ active, payload, label, sufijo = 'planchas' }) {
 
 function Scorecard({ icono, titulo, valor, detalle, colorValor = 'var(--text1)', colorDetalle = 'var(--text3)' }) {
   return (
-    <div style={cardStyle}>
+    <div className="elevar" style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <span style={{ fontSize: '18px' }}>{icono}</span>
         <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: '600' }}>{titulo}</p>
       </div>
-      <p style={{ fontSize: typeof valor === 'number' ? '28px' : '19px', fontWeight: '700', color: colorValor, lineHeight: 1.2, wordBreak: 'break-word' }}>{valor}</p>
+      <p style={{ fontSize: typeof valor === 'number' ? '28px' : '19px', fontWeight: '700', color: colorValor, lineHeight: 1.2, wordBreak: 'break-word' }}><NumeroAnimado valor={valor} /></p>
       <p style={{ fontSize: '12px', color: colorDetalle, marginTop: '4px' }}>{detalle}</p>
     </div>
   )
@@ -349,7 +351,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Indicadores */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
+          <div className="escalon" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
             <Scorecard icono="🟫" titulo="Planchas vendidas" valor={stats.totalPlanchas}
               detalle={detalleVentas} colorValor="var(--primary)" colorDetalle={colorDetalleVentas} />
             <Scorecard icono="🕐" titulo="Salidas pendientes de boleta (ahora)" valor={pendientes}
@@ -373,10 +375,10 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
           ) : (
             <>
               {/* Flujo del mes (volumen diario) */}
-              <div style={cardStyle}>
+              <Revelar lado="izq" style={cardStyle}>
                 <p style={{ fontSize: '14px', fontWeight: '600' }}>Flujo del mes</p>
                 <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Planchas vendidas en cada día del mes</p>
-                <ResponsiveContainer width="100%" height={290}>
+                <SoloVisible alto={290}><ResponsiveContainer width="100%" height={290}>
                   <AreaChart data={stats.porDia} margin={{ left: 0, right: 12, top: 8, bottom: 22 }}>
                     <defs>
                       <linearGradient id="gradFlujo" x1="0" y1="0" x2="0" y2="1">
@@ -392,46 +394,46 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
                     <Tooltip content={<TooltipPersonalizado />} labelFormatter={d => `Día ${d}`} />
                     <Legend verticalAlign="top" align="right" iconType="plainline" wrapperStyle={{ fontSize: 12, paddingBottom: 6 }} />
                     <Area type="monotone" name="Planchas vendidas por día" dataKey="cantidad" stroke={COLOR_PRIMARIO} strokeWidth={2.5}
-                      fill="url(#gradFlujo)" dot={{ r: 3, fill: COLOR_PRIMARIO }} activeDot={{ r: 5 }} />
+                      fill="url(#gradFlujo)" dot={{ r: 3, fill: COLOR_PRIMARIO }} activeDot={{ r: 5 }} animationDuration={800} animationEasing="ease-out" />
                   </AreaChart>
-                </ResponsiveContainer>
-              </div>
+                </ResponsiveContainer></SoloVisible>
+              </Revelar>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
                 {/* Más vendidos */}
-                <div style={cardStyle}>
+                <Revelar lado="izq" style={cardStyle}>
                   <p style={{ fontSize: '14px', fontWeight: '600' }}>Lo más vendido</p>
                   <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Top de tipos de plancha (cantidad de planchas)</p>
-                  <ResponsiveContainer width="100%" height={Math.max(150, stats.masVendidos.length * 46)}>
+                  <SoloVisible alto={Math.max(150, stats.masVendidos.length * 46)}><ResponsiveContainer width="100%" height={Math.max(150, stats.masVendidos.length * 46)}>
                     <BarChart data={stats.masVendidos} layout="vertical" margin={{ left: 0, right: 40, top: 5, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} horizontal={false} />
                       <XAxis type="number" tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
                       <YAxis type="category" dataKey="nombre" width={140} tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
-                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]}>
+                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} animationDuration={650} animationEasing="ease-out">
                         {stats.masVendidos.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
                         <LabelList dataKey="cantidad" position="right" fill="#1f2937" fontSize={12} fontWeight={600} />
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                  </ResponsiveContainer></SoloVisible>
+                </Revelar>
 
                 {/* Menos vendidos */}
-                <div style={cardStyle}>
+                <Revelar lado="der" style={cardStyle}>
                   <p style={{ fontSize: '14px', fontWeight: '600' }}>Lo menos vendido</p>
                   <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Tipos con menor salida (cantidad de planchas)</p>
-                  <ResponsiveContainer width="100%" height={Math.max(150, stats.menosVendidos.length * 46)}>
+                  <SoloVisible alto={Math.max(150, stats.menosVendidos.length * 46)}><ResponsiveContainer width="100%" height={Math.max(150, stats.menosVendidos.length * 46)}>
                     <BarChart data={stats.menosVendidos} layout="vertical" margin={{ left: 0, right: 40, top: 5, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} horizontal={false} />
                       <XAxis type="number" tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
                       <YAxis type="category" dataKey="nombre" width={140} tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
-                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} fill="#dc2626">
+                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} fill="#dc2626" animationDuration={650} animationEasing="ease-out">
                         <LabelList dataKey="cantidad" position="right" fill="#1f2937" fontSize={12} fontWeight={600} />
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                  </ResponsiveContainer></SoloVisible>
+                </Revelar>
               </div>
 
               {stats.porTipo.length <= 1 && (
@@ -442,23 +444,23 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
 
               {/* Por categoría */}
               {stats.porCategoria.length > 1 && (
-                <div style={cardStyle}>
+                <Revelar lado="der" style={cardStyle}>
                   <p style={{ fontSize: '14px', fontWeight: '600' }}>Ventas por categoría</p>
                   <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Planchas vendidas agrupadas por categoría</p>
-                  <ResponsiveContainer width="100%" height={270}>
+                  <SoloVisible alto={270}><ResponsiveContainer width="100%" height={270}>
                     <BarChart data={stats.porCategoria} margin={{ left: 0, right: 10, top: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRILLA} vertical={false} />
                       <XAxis dataKey="categoria" tick={{ fill: '#374151', fontSize: 11 }} axisLine={{ stroke: GRILLA }} tickLine={false} interval={0} angle={-20} textAnchor="end" height={60} />
                       <YAxis tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={44}
                         label={{ value: 'Planchas', angle: -90, position: 'insideLeft', fill: '#4b5563', fontSize: 12, style: { textAnchor: 'middle' } }} />
                       <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
-                      <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                      <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} animationDuration={650} animationEasing="ease-out">
                         {stats.porCategoria.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
                         <LabelList dataKey="cantidad" position="top" fill="#1f2937" fontSize={12} fontWeight={600} />
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                  </ResponsiveContainer></SoloVisible>
+                </Revelar>
               )}
             </>
           )}

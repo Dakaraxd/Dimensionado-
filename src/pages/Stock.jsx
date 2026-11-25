@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MovimientoModal from '../components/MovimientoModal'
 import MovimientosInventario from '../components/MovimientosInventario'
+import NumeroAnimado from '../components/NumeroAnimado'
 
 const chip = (activo) => ({
   padding: '7px 16px', borderRadius: '99px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
@@ -104,20 +105,20 @@ export default function Stock() {
               {esAdmin && <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>Usa “Registrar movimiento” → Ingreso para comenzar.</p>}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
+            <div className="escalon" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
               {stocksFiltrados.map(s => (
-                <div key={s.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px' }}>
+                <div key={s.id} className="elevar" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <div>
                       <p style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '2px' }}>{s.plancha_categoria}</p>
                       <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '2px' }}>{s.plancha_nombre}</h3>
                       <p style={{ fontSize: '12px', color: 'var(--text3)' }}>{s.plancha_medida}</p>
                     </div>
-                    <span style={{ fontSize: '28px', fontWeight: '500', color: disponibleColor(s.disponible, s.total) }}>{s.disponible}</span>
+                    <span style={{ fontSize: '28px', fontWeight: '500', color: disponibleColor(s.disponible, s.total) }}><NumeroAnimado valor={s.disponible} /></span>
                   </div>
 
                   <div style={{ background: 'var(--bg3)', borderRadius: '99px', height: '4px', marginBottom: '10px' }}>
-                    <div style={{
+                    <div className="barra-crece" style={{
                       height: '4px', borderRadius: '99px', background: disponibleColor(s.disponible, s.total),
                       width: `${s.total > 0 ? Math.min(100, Math.max(0, (s.disponible / s.total) * 100)) : 0}%`, transition: 'width 0.3s'
                     }} />

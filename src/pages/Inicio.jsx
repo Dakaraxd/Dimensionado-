@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import PanelVentas from './PanelVentas'
 import MetaAnual from '../components/MetaAnual'
+import Revelar from '../components/Revelar'
 
 const ACCESOS = [
   { key: 'venta', icon: '🛒', label: 'Nueva orden', destacado: true, soloOperar: true },
@@ -62,10 +63,10 @@ export default function Inicio({ onNavegar }) {
 
       {/* La meta del año la ven solo el administrador y el subgerente (la base también lo exige).
           Si la base aún no la tiene, la tarjeta no aparece. */}
-      {veTablero && <MetaAnual />}
+      {veTablero && <Revelar lado="izq"><MetaAnual /></Revelar>}
 
       {veTablero ? (
-        <PanelVentas despuesDeTarjetas={accesosRapidos} />
+        <PanelVentas despuesDeTarjetas={<Revelar lado="der">{accesosRapidos}</Revelar>} />
       ) : accesosRapidos}
     </div>
   )

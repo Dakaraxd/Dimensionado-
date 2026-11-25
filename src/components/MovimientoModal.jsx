@@ -19,6 +19,7 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
   const [subgerentes, setSubgerentes] = useState(null) // null = cargando
   const [subgerenteId, setSubgerenteId] = useState('')
   const [clave, setClave] = useState('')
+  const [autorizando, setAutorizando] = useState(false) // ventana emergente que pide la clave del subgerente
 
   const t = TIPOS_MOVIMIENTO[tipo]
   // Solo la merma y el ajuste necesitan la clave de un subgerente
@@ -31,6 +32,7 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
     listarSubgerentes().then(r => {
       if (cancelado) return
       setSubgerentes(r.subgerentes)
+      if (r.subgerentes?.length === 1) setSubgerenteId(r.subgerentes[0].id) // con uno solo, ya queda elegido
       if (r.error) setError(r.error)
     })
     return () => { cancelado = true }
@@ -61,16 +63,44 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
       if (tipo === 'devolucion' && (!s || c > s.vendido)) return `La devolución no puede superar lo vendido (${s?.vendido ?? 0})`
     }
     if (t.exigeMotivo && motivo.trim().length < 3) return 'Indica el motivo (mínimo 3 letras)'
-    if (requiereClave) {
-      if (!subgerenteId) return 'Elige al subgerente que autoriza'
-      if (!clave) return 'Ingresa la clave del subgerente'
-    }
     return ''
   }
 
-  async function guardar(e) {
+  // Lo que se pide en la ventana emergente de autorización
+  function validarAutorizacion() {
+    if (!subgerenteId) return 'Elige al subgerente que autoriza'
+    if (!clave) return 'Ingresa la clave del subgerente'
+    return ''
+  }
+
+  // Al presionar "Registrar": se revisa el formulario y, si es merma o ajuste, se abre la ventana de la clave
+  function enviar(e) {
     e.preventDefault()
     const problema = validar()
+    if (problema) { setError(problema); return }
+    setError('')
+    if (requiereClave) { setAutorizando(true); return }
+    guardar()
+  }
+
+  function cerrarAutorizacion() {
+    if (guardando) return
+    setAutorizando(false)
+    setClave('')
+    setError('')
+  }
+
+  // Esc cierra la ventana de la clave
+  useEffect(() => {
+    if (!autorizando) return undefined
+    const alTeclear = (e) => { if (e.key === 'Escape' && !guardando) cerrarAutorizacion() }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autorizando, guardando])
+
+  async function guardar() {
+    const problema = validar() || (requiereClave ? validarAutorizacion() : '')
     if (problema) { setError(problema); return }
     setGuardando(true)
     setError('')
@@ -86,8 +116,10 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
     setGuardando(false)
     if (res.error) {
       setError(res.error)
-      // Si la clave falló, se limpia para que no quede a la vista; el resto del formulario se conserva
+      // Si la clave falló, se limpia para que no quede a la vista y la ventana sigue abierta para reintentar;
+      // con cualquier otro error (por ejemplo, stock insuficiente) se vuelve al formulario, que se conserva
       if (res.codigo === 'incorrecta' || res.codigo === 'bloqueado' || res.codigo === 'sin_clave') setClave('')
+      else setAutorizando(false)
       return
     }
     onGuardado?.()
@@ -99,9 +131,16 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
        ...sinStock.map(x => ({ id: x.id, texto: `${x.nombre} ${x.medida ?? ''} — sin stock aún` }))]
     : stocks.map(x => ({ id: x.tipo_plancha_id, texto: `${x.plancha_nombre} ${x.plancha_medida ?? ''} — ${x.disponible} disp.` }))
 
+  // Resumen que se muestra en la ventana de la clave, para que el subgerente sepa qué está autorizando
+  const nombrePlancha = s ? `${s.plancha_nombre} ${s.plancha_medida ?? ''}`.trim() : ''
+  const resumenAutorizacion = tipo === 'ajuste'
+    ? `Ajuste de ${nombrePlancha}: el total pasa de ${s?.total ?? 0} a ${nuevoTotal || 0} planchas (${delta > 0 ? '+' : ''}${Number.isNaN(delta) ? 0 : delta}).`
+    : `Merma de ${cantidad || 0} plancha${cantidad === '1' ? '' : 's'} de ${nombrePlancha}.`
+
   return (
+    <>
     <Modal titulo="Registrar movimiento de inventario" onCerrar={onCerrar}>
-      <form onSubmit={guardar}>
+      <form onSubmit={enviar}>
         <h3 style={{ fontSize: '17px', fontWeight: 600, marginBottom: '14px' }}>Registrar movimiento</h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '8px' }}>
@@ -146,27 +185,9 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
         <input type="text" value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="Nº de guía, factura o boleta" />
 
         {requiereClave && (
-          <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginTop: '14px' }}>
-            <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>🔑 Autorización de subgerente</p>
-            {subgerentes !== null && subgerentes.length === 0 ? (
-              <p style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.5 }}>
-                Aún no hay subgerentes con clave. Un subgerente debe iniciar sesión y crear su clave de stock.
-              </p>
-            ) : (
-              <>
-                <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '10px' }}>
-                  {tipo === 'merma' ? 'La merma' : 'El ajuste'} necesita que un subgerente escriba su clave.
-                </p>
-                <label style={label}>Subgerente *</label>
-                <select value={subgerenteId} onChange={e => { setSubgerenteId(e.target.value); setError('') }} style={{ marginBottom: '10px' }} disabled={subgerentes === null}>
-                  <option value="">{subgerentes === null ? 'Cargando...' : 'Selecciona...'}</option>
-                  {(subgerentes ?? []).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                </select>
-                <label style={label}>Clave del subgerente *</label>
-                <input type="password" inputMode="numeric" autoComplete="off" maxLength={64} value={clave} onChange={e => { setClave(e.target.value); setError('') }} />
-              </>
-            )}
-          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '14px', lineHeight: 1.5 }}>
+            🔑 {tipo === 'merma' ? 'La merma' : 'El ajuste'} necesita la clave de un subgerente: se te pedirá en una ventana al presionar Registrar.
+          </p>
         )}
 
         {disponibleDespues !== null && planchaId && (
@@ -176,7 +197,7 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
           </div>
         )}
 
-        {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
+        {error && !autorizando && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '18px' }}>
           <button type="button" onClick={onCerrar} disabled={guardando}
@@ -188,5 +209,50 @@ export default function MovimientoModal({ stocks, sinStock = [], inicial, onCerr
         </div>
       </form>
     </Modal>
+
+    {/* Ventana emergente: el subgerente escribe su clave para autorizar la merma o el ajuste */}
+    {autorizando && (
+      <Modal titulo="Autorización de subgerente" onCerrar={cerrarAutorizacion}>
+        <form onSubmit={(e) => { e.preventDefault(); guardar() }} style={{ textAlign: 'center' }}>
+          <div className="rebote" style={{ fontSize: '40px', lineHeight: 1, marginBottom: '8px' }} aria-hidden="true">🔑</div>
+          <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '6px' }}>Autorización de subgerente</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5, marginBottom: '14px' }}>{resumenAutorizacion}</p>
+
+          {subgerentes !== null && subgerentes.length === 0 ? (
+            <>
+              <p style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginBottom: '16px' }}>
+                Aún no hay subgerentes con clave. Un subgerente debe iniciar sesión y crear su clave de stock.
+              </p>
+              <button type="button" onClick={cerrarAutorizacion}
+                style={{ background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 22px', fontSize: '14px' }}>Cerrar</button>
+            </>
+          ) : (
+            <>
+              <div style={{ textAlign: 'left' }}>
+                <label style={label}>Subgerente *</label>
+                <select value={subgerenteId} autoFocus={!subgerenteId} disabled={subgerentes === null || guardando}
+                  onChange={e => { setSubgerenteId(e.target.value); setError('') }} style={{ marginBottom: '12px' }}>
+                  <option value="">{subgerentes === null ? 'Cargando...' : 'Selecciona...'}</option>
+                  {(subgerentes ?? []).map(sg => <option key={sg.id} value={sg.id}>{sg.nombre}</option>)}
+                </select>
+                <label style={label}>Clave del subgerente *</label>
+                <input type="password" inputMode="numeric" autoComplete="off" autoFocus={!!subgerenteId} maxLength={64}
+                  value={clave} disabled={guardando} onChange={e => { setClave(e.target.value); setError('') }} />
+              </div>
+              {error && <p role="alert" style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '8px', marginTop: '12px' }}>{error}</p>}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '18px' }}>
+                <button type="button" onClick={cerrarAutorizacion} disabled={guardando}
+                  style={{ background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 18px', fontSize: '14px' }}>Cancelar</button>
+                <button type="submit" disabled={guardando}
+                  style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 22px', fontSize: '14px', fontWeight: 600, opacity: guardando ? 0.7 : 1 }}>
+                  {guardando ? 'Autorizando...' : 'Autorizar y registrar'}
+                </button>
+              </div>
+            </>
+          )}
+        </form>
+      </Modal>
+    )}
+    </>
   )
 }

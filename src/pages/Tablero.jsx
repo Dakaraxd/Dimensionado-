@@ -223,7 +223,7 @@ export default function Tablero() {
             const estaExpandido = expandido === d.fecha
 
             return (
-              <div key={d.fecha} style={{
+              <div key={d.fecha} className="elevar" style={{
                 background: esHoyDia ? 'rgba(227,6,19,0.12)' : pasado ? 'var(--bg3)' : colores.bg,
                 border: `1px solid ${esHoyDia ? 'var(--primary)' : tieneOrdenes ? 'rgba(227,6,19,0.35)' : colores.border}`,
                 borderRadius: '10px',
@@ -285,7 +285,7 @@ export default function Tablero() {
                     </button>
 
                     {estaExpandido && (
-                      <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div className="entrada" style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {/* Pendientes */}
                         {pendientes.map(o => (
                           <div key={o.id} style={{

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { Modal } from './CuentasRapidas'
 import { calcularMeta, fechaChile, HITOS, PORCENTAJE_META } from '../lib/meta'
+import NumeroAnimado from './NumeroAnimado'
 
 const nf = (n) => Number(n ?? 0).toLocaleString('es-CL')
 const MESES = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
@@ -175,7 +176,7 @@ export default function MetaAnual() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
-        <span style={{ fontSize: '30px', fontWeight: 800, color: m.completada ? 'var(--green)' : 'var(--primary)', lineHeight: 1.1 }}>{nf(m.total)}</span>
+        <span style={{ fontSize: '30px', fontWeight: 800, color: m.completada ? 'var(--green)' : 'var(--primary)', lineHeight: 1.1 }}><NumeroAnimado valor={m.total} duracion={1000} formato={nf} /></span>
         <span style={{ fontSize: '14px', color: 'var(--text2)' }}>de {nf(m.meta)} planchas</span>
         <span style={{ fontSize: '14px', fontWeight: 700, color: m.completada ? 'var(--green)' : 'var(--text1)' }}>{m.avancePct.toLocaleString('es-CL')}%</span>
       </div>
