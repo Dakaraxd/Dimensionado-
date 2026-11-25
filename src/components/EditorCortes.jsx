@@ -347,7 +347,14 @@ export default function EditorCortes({ cliente, plancha, inicial, soloLectura = 
 
           let finDiagrama = 36
           if (svgs[pi]) {
-            const canvas = await html2canvas(svgs[pi], { backgroundColor: '#e5e7eb', scale: 2 })
+            // Se captura el plano ya terminado: sin animaciones ni secciones ocultas por el efecto de scroll
+            const canvas = await html2canvas(svgs[pi], {
+              backgroundColor: '#e5e7eb', scale: 2,
+              onclone: (doc) => {
+                doc.querySelectorAll('.revela').forEach(n => { n.style.opacity = '1'; n.style.animation = 'none' })
+                doc.querySelectorAll('.pieza-aparece').forEach(n => { n.style.animation = 'none'; n.style.opacity = '1' })
+              }
+            })
             const img = canvas.toDataURL('image/png')
             const dispW = 180, dispH = 135 // el diagrama deja lugar a la tabla de cortes debajo
             const ratio = dimensiones.h / dimensiones.w

@@ -385,7 +385,7 @@ export default function HistorialVentas() {
                     <XAxis dataKey="etiqueta" tick={{ fontSize: 10, fill: 'var(--text3)' }} interval={mensual.meses.length > 12 ? 1 : 0} />
                     <YAxis tick={{ fontSize: 10, fill: 'var(--text3)' }} allowDecimals={false} />
                     <Tooltip formatter={(v) => [`${v} planchas`, 'Vendidas']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                    <Bar dataKey="planchas" radius={[4, 4, 0, 0]} animationDuration={900} animationEasing="ease-out">
+                    <Bar dataKey="planchas" radius={[4, 4, 0, 0]} animationDuration={650} animationEasing="ease-out">
                       {mensual.meses.map((m, i) => (
                         <Cell key={m.clave} fill={comparacion && i < 12 ? 'rgba(227,6,19,0.35)' : '#e30613'} />
                       ))}

@@ -4,7 +4,7 @@ const sinMovimiento = () => typeof window !== 'undefined' && !!window.matchMedia
 
 // Muestra un número entero contando desde el valor anterior (o desde 0 la primera vez).
 // Cualquier otro valor (texto, decimales) se muestra tal cual, y con "reducir movimiento" no hay animación.
-export default function NumeroAnimado({ valor, duracion = 700, formato }) {
+export default function NumeroAnimado({ valor, duracion = 500, formato }) {
   const animable = Number.isInteger(valor) && !sinMovimiento()
   const [actual, setActual] = useState(animable ? 0 : valor)
   const origen = useRef(0)

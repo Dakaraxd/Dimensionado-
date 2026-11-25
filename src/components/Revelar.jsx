@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import { registrar } from '../lib/revelar'
 
-const sinEfecto = () =>
-  typeof window === 'undefined' || typeof IntersectionObserver === 'undefined' ||
-  !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-
-// Devuelve [ref, visto]: `visto` pasa a true (y ya no vuelve a false) la primera vez que el elemento entra en pantalla.
-// Si el navegador no puede observar, o la persona pidió "reducir movimiento", todo se muestra de inmediato.
-function useVisto() {
+// Una sección que entra desde el costado al llegar a la vista (y otra vez, más rápido, al volver a verla).
+// `lado`: de dónde viene ('izq' o 'der'). El resto de las propiedades son las de un div normal.
+export default function Revelar({ lado = 'izq', className, style, children }) {
   const ref = useRef(null)
-  const [visto, setVisto] = useState(sinEfecto)
+  useEffect(() => { registrar(ref.current, lado) }, [lado])
+  return <div ref={ref} className={className} style={style}>{children}</div>
+}
+
+// Muestra su contenido (por ejemplo un gráfico) solo cuando llega a la pantalla, para que su animación de dibujo
+// se vea al llegar y no cuando la sección aún está fuera de vista. Una vez dibujado se queda, sin repetirse.
+// Reserva el alto para no mover la página.
+export function SoloVisible({ alto, children }) {
+  const ref = useRef(null)
+  const [visto, setVisto] = useState(() =>
+    typeof IntersectionObserver === 'undefined' || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
 
   useEffect(() => {
     const el = ref.current
@@ -20,23 +27,5 @@ function useVisto() {
     return () => observador.disconnect()
   }, [visto])
 
-  return [ref, visto]
-}
-
-// Al bajar por la pantalla, la sección entra con un leve desplazamiento desde el costado y se desvanece al aparecer.
-// `lado`: de dónde viene ('izq' o 'der'). El resto de las propiedades son las de un div normal.
-export default function Revelar({ lado = 'izq', className = '', style, children }) {
-  const [ref, visto] = useVisto()
-  return (
-    <div ref={ref} className={`revela revela-${lado}${visto ? ' visto' : ''} ${className}`.trim()} style={style}>
-      {children}
-    </div>
-  )
-}
-
-// Muestra su contenido (por ejemplo un gráfico) solo cuando llega a la pantalla, para que su animación
-// de dibujo se vea al llegar y no cuando la sección aún está fuera de vista. Reserva el alto para no mover la página.
-export function SoloVisible({ alto, children }) {
-  const [ref, visto] = useVisto()
   return <div ref={ref} style={{ minHeight: alto }}>{visto ? children : null}</div>
 }
