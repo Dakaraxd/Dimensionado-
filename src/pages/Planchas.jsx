@@ -310,7 +310,7 @@ export default function Planchas() {
                 </button>
 
                 {categoriasAbiertas[cat] && (
-                  <div style={{ borderTop: '1px solid var(--border)' }}>
+                  <div className="entrada" style={{ borderTop: '1px solid var(--border)' }}>
                     <TablaPlanchas items={items} onEditar={abrirFormEditar} onToggleActivo={handleToggleActivo} />
                   </div>
                 )}

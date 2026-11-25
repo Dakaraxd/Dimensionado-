@@ -42,7 +42,7 @@ function TooltipPersonalizado({ active, payload, label, sufijo = 'planchas' }) {
 
 function Scorecard({ icono, titulo, valor, detalle, colorValor = 'var(--text1)', colorDetalle = 'var(--text3)' }) {
   return (
-    <div style={cardStyle}>
+    <div className="elevar" style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <span style={{ fontSize: '18px' }}>{icono}</span>
         <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: '600' }}>{titulo}</p>

@@ -181,9 +181,9 @@ export default function Ordenes({ onNuevaVenta }) {
                   </div>
                   <span style={{ fontSize: '12px', color: 'var(--text3)' }}>{totalFecha} planchas</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="escalon" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {items.map(o => (
-                    <div key={o.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                    <div key={o.id} className="elevar" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
                           <span style={{ background: 'var(--amber-soft)', color: 'var(--amber)', fontSize: '11px', fontWeight: '500', padding: '3px 8px', borderRadius: '99px' }}>En espera</span>

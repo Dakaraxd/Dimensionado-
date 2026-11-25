@@ -28,7 +28,7 @@ const chip = (activo) => ({
 
 function Tarjeta({ icono, titulo, valor, detalle, colorValor = 'var(--text1)', colorDetalle = 'var(--text3)' }) {
   return (
-    <div style={{ ...card, padding: '14px 18px' }}>
+    <div className="elevar" style={{ ...card, padding: '14px 18px' }}>
       <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600, marginBottom: '6px' }}>{icono} {titulo}</p>
       <p style={{ fontSize: typeof valor === 'number' ? '26px' : '18px', fontWeight: 700, color: colorValor, lineHeight: 1.15, wordBreak: 'break-word' }}><NumeroAnimado valor={valor} /></p>
       <p style={{ fontSize: '11px', color: colorDetalle, marginTop: '3px' }}>{detalle}</p>
@@ -488,7 +488,7 @@ export default function HistorialVentas() {
               </p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            <div className="escalon" style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
               {Object.entries(porDia).map(([dia, items]) => {
                 const vig = items.filter(o => o.estado === 'aprobada')
                 return (
@@ -526,7 +526,7 @@ export default function HistorialVentas() {
                             </button>
 
                             {abiertaAhora && (
-                              <div style={{ padding: '14px 16px 16px', background: 'var(--bg3)', borderTop: '1px solid var(--border)' }}>
+                              <div className="entrada" style={{ padding: '14px 16px 16px', background: 'var(--bg3)', borderTop: '1px solid var(--border)' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px', marginBottom: '14px' }}>
                                   <Dato titulo="Cliente">
                                     {o.cliente_nombre || '—'}

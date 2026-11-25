@@ -34,7 +34,8 @@ function DiagramaPlancha({ plancha, escala, planchaW, planchaH }) {
         const ch = c.h * escala
         const color = COLORES[c.colorIdx % COLORES.length]
         return (
-          <div key={i} style={{
+          <div key={i} className="pieza-aparece" style={{
+            animationDelay: Math.min(i * 30, 480) + 'ms',
             position: 'absolute', left: cx, top: cy, width: cw, height: ch,
             background: 'white', border: `2px solid ${color}`,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

@@ -342,3 +342,45 @@ button:not(:disabled):active { transform: scale(0.97); }
   button { transition: none; }
   button:not(:disabled):active { transform: none; }
 }
+
+/* ───────── Animaciones, segunda parte ───────── */
+@keyframes sacudir {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+@keyframes icono-salta {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  35% { transform: translateY(-5px) rotate(-8deg); }
+  70% { transform: translateY(0) rotate(6deg); }
+}
+@keyframes pieza-entra { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+
+/* Tarjetas que se elevan un poco al pasar el mouse (sin cambiar colores) */
+.elevar { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.elevar:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09); }
+
+/* Iconos que reaccionan: menú lateral y accesos rápidos */
+.nav-item > span:first-child { display: inline-block; transition: transform 0.18s ease; }
+.nav-item:hover > span:first-child { transform: scale(1.18) rotate(-4deg); }
+.quick-tile:hover .quick-icon { animation: icono-salta 0.55s ease; }
+
+/* El contador de órdenes pendientes late suavemente para llamar la atención */
+.quick-badge { animation: latido 2.2s ease-in-out infinite; }
+
+/* Mensajes de error con un pequeño temblor; avisos de éxito que aparecen con suavidad */
+p[style*="var(--red-soft)"], [role="alert"] { animation: sacudir 0.4s ease-in-out; }
+div[style*="var(--green-soft)"] { animation: entra-subiendo 0.3s ease-out backwards; }
+
+/* Las piezas del plano de cortes aparecen una tras otra */
+.pieza-aparece { animation: pieza-entra 0.3s ease-out backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .elevar, .elevar:hover { transition: none; transform: none; box-shadow: none; }
+  .nav-item > span:first-child, .nav-item:hover > span:first-child { transition: none; transform: none; }
+  .quick-tile:hover .quick-icon, .quick-badge, p[style*="var(--red-soft)"], [role="alert"],
+  div[style*="var(--green-soft)"], .pieza-aparece { animation: none; }
+}

@@ -27,7 +27,7 @@ const chip = (activo) => ({
 
 function Tarjeta({ icono, titulo, valor, color = 'var(--text1)' }) {
   return (
-    <div style={{ ...card, padding: '14px 18px' }}>
+    <div className="elevar" style={{ ...card, padding: '14px 18px' }}>
       <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600, marginBottom: '6px' }}>{icono} {titulo}</p>
       <p style={{ fontSize: '26px', fontWeight: 700, color, lineHeight: 1.15 }}><NumeroAnimado valor={valor} /></p>
     </div>
@@ -176,7 +176,7 @@ export default function MovimientosInventario({ recarga = 0 }) {
               <p style={{ color: 'var(--text3)' }}>{hayFiltro ? 'No hay movimientos que coincidan con los filtros.' : 'No hay movimientos en este período.'}</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="escalon" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {Object.entries(porDia).map(([dia, items]) => (
                 <div key={dia}>
                   <p style={{ fontSize: '14px', fontWeight: 600, textTransform: 'capitalize', marginBottom: '8px' }}>{etiquetaDia(dia)}</p>
