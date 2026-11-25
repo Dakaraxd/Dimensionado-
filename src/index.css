@@ -509,3 +509,8 @@ div[style*="var(--green-soft)"] { animation: entra-subiendo 0.3s ease-out backwa
   .act-item:hover .act-nodo, .act-item.nuevo .act-nodo::after, .punto.vivo::after { animation: none; }
   .stat-card, .stat-icono, .chip-x, .act-tarjeta, .acordeon, .chevron, .seg .indicador, .buscador .lupa { transition: none; }
 }
+
+/* Botón pequeño de acción en tablas: se pinta con su color al pasar el mouse */
+.btn-mini { background: transparent; border: 1px solid var(--border); color: var(--text2); border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 600; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease; }
+.btn-mini:hover { border-color: var(--c, var(--primary)); color: var(--c, var(--primary)); background: var(--cs, var(--primary-soft)); }
+@media (prefers-reduced-motion: reduce) { .btn-mini { transition: none; } }

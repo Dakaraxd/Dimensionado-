@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { Avatar } from '../components/CuentasRapidas'
+import NumeroAnimado from '../components/NumeroAnimado'
 import { useAuth } from '../context/AuthContext'
 import { registrarLog } from '../lib/logger'
 import { restablecerPin } from '../lib/cuentas'
 import { restablecerClave } from '../lib/autorizacion'
 
+const ICONO_ROL = { administrador: '🛡️', subgerente: '🔑', vendedor: '🛒', solo_lectura: '👁️' }
 const ROLES = { vendedor: 'Vendedor', administrador: 'Administrador', subgerente: 'Subgerente', solo_lectura: 'Solo lectura' }
 
 export default function Usuarios() {
@@ -90,6 +93,8 @@ export default function Usuarios() {
   }
 
   const adminsActivos = usuarios.filter(u => u.rol === 'administrador' && u.activo !== false).length
+  const totalActivos = usuarios.filter(u => u.activo !== false).length
+  const porRol = (r) => usuarios.filter(u => u.rol === r).length
   // El administrador solo puede crear la primera cuenta de subgerente; después las gestiona un subgerente
   const haySubgerente = usuarios.some(u => u.rol === 'subgerente')
   const rolesElegibles = Object.entries(ROLES).filter(([k]) => k !== 'subgerente' || !haySubgerente)
@@ -155,13 +160,31 @@ export default function Usuarios() {
     <div style={{ color: 'var(--text1)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '500', marginBottom: '4px' }}>Usuarios</h2>
+          <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '2px' }}>Usuarios</h2>
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{usuarios.length} usuarios registrados</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setError(''); setExito('') }}
           style={{ background: showForm ? 'var(--bg3)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '500' }}>
           {showForm ? 'Cancelar' : '+ Nuevo usuario'}
         </button>
+      </div>
+
+      <div className="stat-grid">
+        {[
+          { icono: '👥', titulo: 'Usuarios', valor: usuarios.length, detalle: `${totalActivos} activos`, color: 'var(--primary)', soft: 'var(--primary-soft)' },
+          { icono: '🛡️', titulo: 'Administradores', valor: porRol('administrador'), detalle: 'gestionan la tienda', color: 'var(--purple)', soft: 'var(--purple-soft)' },
+          { icono: '🛒', titulo: 'Vendedores', valor: porRol('vendedor'), detalle: 'atienden y venden', color: 'var(--primary)', soft: 'var(--primary-soft)' },
+          { icono: '🔑', titulo: 'Subgerentes', valor: porRol('subgerente'), detalle: 'autorizan el stock', color: 'var(--info)', soft: 'var(--info-soft)' },
+        ].map(t => (
+          <div key={t.titulo} className="stat-card" style={{ '--c': t.color, '--cs': t.soft }}>
+            <div className="stat-icono">{t.icono}</div>
+            <div>
+              <p className="stat-valor"><NumeroAnimado valor={t.valor} /></p>
+              <p className="stat-titulo">{t.titulo}</p>
+              <p className="stat-detalle">{t.detalle}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {exito && (
@@ -171,7 +194,7 @@ export default function Usuarios() {
       )}
 
       {showForm && (
-        <form onSubmit={handleCrear} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
+        <form className="entrada" onSubmit={handleCrear} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>Nuevo usuario</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
             <div>
@@ -224,7 +247,7 @@ export default function Usuarios() {
       {loading ? (
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando usuarios...</p>
       ) : (
-        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', overflowX: 'auto' }}>
           <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg3)' }}>
@@ -234,7 +257,7 @@ export default function Usuarios() {
               </tr>
             </thead>
             <tbody>
-              {usuarios.map(u => editando?.id === u.id ? (
+              {usuarios.map((u, idx) => editando?.id === u.id ? (
                 <tr key={u.id} style={{ borderTop: '1px solid var(--border)', background: 'var(--bg3)' }}>
                   <td style={{ padding: '10px 16px' }}>
                     <input type="text" value={editando.nombre} onChange={e => setEditando({ ...editando, nombre: e.target.value })} />
@@ -260,7 +283,7 @@ export default function Usuarios() {
                       </label>
                     )}
                   </td>
-                  <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{new Date(u.creado_en).toLocaleDateString('es-CL')}</td>
+                  <td style={{ padding: '10px 16px', color: 'var(--text3)' }}><span style={{ whiteSpace: 'nowrap' }}>{new Date(u.creado_en).toLocaleDateString('es-CL')}</span></td>
                   <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
                     <button onClick={() => guardarEdicion(u)} disabled={guardandoEd}
                       style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: 600, marginRight: '6px' }}>
@@ -271,36 +294,36 @@ export default function Usuarios() {
                   </td>
                 </tr>
               ) : (
-                <tr key={u.id} style={{ borderTop: '1px solid var(--border)', opacity: u.activo === false ? 0.6 : 1 }}>
-                  <td style={{ padding: '12px 16px', fontWeight: '500', color: 'var(--text1)' }}>{u.nombre}</td>
+                <tr key={u.id} className="fila-hover fila-entra" style={{ '--i': idx, borderTop: '1px solid var(--border)', opacity: u.activo === false ? 0.6 : 1 }}>
+                  <td style={{ padding: '10px 16px', fontWeight: '600', color: 'var(--text1)' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}><Avatar nombre={u.nombre} tamano={32} />{u.nombre}</span></td>
                   <td style={{ padding: '12px 16px', color: 'var(--text3)' }}>{u.email}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
                       background: rolColor[u.rol]?.bg ?? 'var(--bg3)',
                       color: rolColor[u.rol]?.color ?? 'var(--text3)',
-                      fontSize: '11px', padding: '2px 8px', borderRadius: '99px', fontWeight: '500'
+                      fontSize: '11px', padding: '3px 10px', borderRadius: '99px', fontWeight: '600', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center'
                     }}>
-                      {u.rol?.replace('_', ' ')}
+                      {ICONO_ROL[u.rol] ?? ''} {u.rol?.replace('_', ' ')}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
                       background: u.activo === false ? 'var(--red-soft)' : 'var(--green-soft)',
                       color: u.activo === false ? 'var(--red)' : 'var(--green)',
-                      fontSize: '11px', padding: '2px 8px', borderRadius: '99px', fontWeight: '500'
-                    }}>{u.activo === false ? 'Inactivo' : 'Activo'}</span>
+                      fontSize: '11px', padding: '3px 10px', borderRadius: '99px', fontWeight: '600', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center'
+                    }}><span className={`punto${u.activo === false ? '' : ' vivo'}`} style={{ '--c': u.activo === false ? 'var(--red)' : 'var(--green)' }} />{u.activo === false ? 'Inactivo' : 'Activo'}</span>
                   </td>
                   <td style={{ padding: '12px 16px', color: 'var(--text3)' }}>
-                    {new Date(u.creado_en).toLocaleDateString('es-CL')}
+                    <span style={{ whiteSpace: 'nowrap' }}>{new Date(u.creado_en).toLocaleDateString('es-CL')}</span>
                   </td>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                     <button onClick={() => { setEditando({ id: u.id, nombre: u.nombre ?? '', rol: u.rol, activo: u.activo !== false }); setErrorEd(''); setExito('') }}
-                      style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginRight: '6px' }}>✏️ Editar</button>
+                      className="btn-mini" style={{ '--c': 'var(--primary)', '--cs': 'var(--primary-soft)', marginRight: '6px' }}>✏️ Editar</button>
                     <button onClick={() => resetearPin(u)} title="Borra su PIN para que cree uno nuevo"
-                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px' }}>🔐 Restablecer PIN</button>
+                      className="btn-mini" style={{ '--c': 'var(--info)', '--cs': 'var(--info-soft)' }}>🔐 Restablecer PIN</button>
                     {u.rol === 'subgerente' && (
                       <button onClick={() => resetearClave(u)} title="Borra su clave de autorización para que cree una nueva"
-                        style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', marginLeft: '6px' }}>🔑 Restablecer clave</button>
+                        className="btn-mini" style={{ '--c': 'var(--info)', '--cs': 'var(--info-soft)', marginLeft: '6px' }}>🔑 Restablecer clave</button>
                     )}
                   </td>
                 </tr>

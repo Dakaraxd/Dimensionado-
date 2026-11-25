@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { registrarLog } from '../lib/logger'
 import { CATEGORIAS_CON_SERVICIOS } from '../lib/constants'
+import NumeroAnimado from '../components/NumeroAnimado'
 
 const categoriaColor = {
   'Melamina': { bg: 'rgba(139,92,246,0.12)', color: '#6d28d9', border: 'rgba(139,92,246,0.3)' },
@@ -18,13 +19,6 @@ const categoriaColor = {
   'Servicios': { bg: 'rgba(239,68,68,0.12)', color: '#b91c1c', border: 'rgba(239,68,68,0.3)' },
 }
 
-const chip = (activo) => ({
-  padding: '6px 14px', borderRadius: '99px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
-  border: `1px solid ${activo ? 'var(--primary)' : 'var(--border)'}`,
-  background: activo ? 'var(--primary)' : 'var(--bg2)',
-  color: activo ? '#fff' : 'var(--text2)'
-})
-
 function TablaPlanchas({ items, mostrarCategoria, onEditar, onToggleActivo }) {
   const cols = mostrarCategoria
     ? ['Nombre', 'Medida', 'Categoría', 'SKU', 'Estado', 'Acciones']
@@ -40,21 +34,22 @@ function TablaPlanchas({ items, mostrarCategoria, onEditar, onToggleActivo }) {
           </tr>
         </thead>
         <tbody>
-          {items.map(p => (
-            <tr key={p.id} style={{ borderTop: '1px solid var(--border)', opacity: p.activo ? 1 : 0.5 }}>
-              <td style={{ padding: '10px 16px', fontWeight: '500', color: 'var(--text1)' }}>{p.nombre}</td>
-              <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{p.medida ?? '-'}</td>
+          {items.map((p, i) => (
+            <tr key={p.id} className="fila-hover fila-entra" style={{ '--i': i, borderTop: '1px solid var(--border)', opacity: p.activo ? 1 : 0.55 }}>
+              <td style={{ padding: '10px 16px', fontWeight: '600', color: 'var(--text1)' }}>{p.nombre}</td>
+              <td style={{ padding: '10px 16px' }}>{p.medida ? <span className="etiqueta neutra">{p.medida}</span> : <span style={{ color: 'var(--text3)' }}>-</span>}</td>
               {mostrarCategoria && <td style={{ padding: '10px 16px', color: 'var(--text3)' }}>{p.categoria ?? '-'}</td>}
               <td style={{ padding: '10px 16px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: '12px' }}>{p.sku ?? '-'}</td>
               <td style={{ padding: '10px 16px' }}>
-                <span style={{ background: p.activo ? 'var(--green-soft)' : 'var(--bg3)', color: p.activo ? 'var(--green)' : 'var(--text3)', fontSize: '11px', padding: '2px 8px', borderRadius: '99px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: p.activo ? 'var(--green-soft)' : 'var(--bg3)', color: p.activo ? 'var(--green)' : 'var(--text3)', fontSize: '11px', fontWeight: 600, padding: '3px 10px 3px 9px', borderRadius: '99px' }}>
+                  <span className={`punto${p.activo ? ' vivo' : ''}`} style={{ '--c': p.activo ? 'var(--green)' : 'var(--text3)' }} />
                   {p.activo ? 'Activo' : 'Inactivo'}
                 </span>
               </td>
               <td style={{ padding: '10px 16px' }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button onClick={() => onEditar(p)} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }}>Editar</button>
-                  <button onClick={() => onToggleActivo(p)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn-mini" style={{ '--c': 'var(--primary)', '--cs': 'var(--primary-soft)' }} onClick={() => onEditar(p)}>✏️ Editar</button>
+                  <button className="btn-mini" style={{ '--c': p.activo ? 'var(--red)' : 'var(--green)', '--cs': p.activo ? 'var(--red-soft)' : 'var(--green-soft)' }} onClick={() => onToggleActivo(p)}>
                     {p.activo ? 'Desactivar' : 'Activar'}
                   </button>
                 </div>
@@ -200,7 +195,7 @@ export default function Planchas() {
     <div style={{ color: 'var(--text1)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '500' }}>Planchas</h2>
+          <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Planchas</h2>
           <p style={{ fontSize: '13px', color: 'var(--text3)' }}>{planchas.length} tipos registrados · {totalActivas} activos</p>
         </div>
         <button onClick={abrirFormNuevo}
@@ -211,7 +206,7 @@ export default function Planchas() {
 
       {/* Formulario */}
       {showForm && (
-        <form onSubmit={handleGuardar} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
+        <form className="entrada" onSubmit={handleGuardar} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>
             {editando ? 'Editar plancha' : 'Nueva plancha'}
           </h3>
@@ -256,27 +251,48 @@ export default function Planchas() {
         </form>
       )}
 
-      {/* Buscador y filtros rápidos */}
-      <div style={{ marginBottom: '12px' }}>
-        <input type="text" placeholder="🔍 Buscar por nombre, SKU o medida..."
-          value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+      {/* Resumen: cada tarjeta también sirve de atajo para filtrar */}
+      <div className="stat-grid">
+        {[
+          { icono: '🟫', titulo: 'Tipos de plancha', valor: planchas.length, detalle: 'en el catálogo', color: 'var(--primary)', soft: 'var(--primary-soft)', activo: !hayFiltro, onClick: limpiarFiltros },
+          { icono: '✅', titulo: 'Activas', valor: totalActivas, detalle: 'se pueden vender', color: 'var(--green)', soft: 'var(--green-soft)', activo: filtroEstado === 'activas', onClick: () => setFiltroEstado(filtroEstado === 'activas' ? 'todas' : 'activas') },
+          { icono: '⏸️', titulo: 'Inactivas', valor: totalInactivas, detalle: 'fuera de uso', color: 'var(--text2)', soft: 'var(--bg3)', activo: filtroEstado === 'inactivas', onClick: () => setFiltroEstado(filtroEstado === 'inactivas' ? 'todas' : 'inactivas') },
+          { icono: '🏷️', titulo: 'Sin SKU', valor: totalSinSku, detalle: totalSinSku > 0 ? 'falta completar' : 'todo al día', color: 'var(--amber)', soft: 'var(--amber-soft)', activo: soloSinSku, onClick: () => setSoloSinSku(v => !v) },
+        ].map(t => (
+          <button key={t.titulo} className={`stat-card${t.activo ? ' activo' : ''}`} style={{ '--c': t.color, '--cs': t.soft, cursor: 'pointer' }} onClick={t.onClick}>
+            <div className="stat-icono">{t.icono}</div>
+            <div>
+              <p className="stat-valor"><NumeroAnimado valor={t.valor} /></p>
+              <p className="stat-titulo">{t.titulo}</p>
+              <p className="stat-detalle">{t.detalle}</p>
+            </div>
+          </button>
+        ))}
       </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
-        <button style={chip(filtroEstado === 'todas')} onClick={() => setFiltroEstado('todas')}>Todas ({planchas.length})</button>
-        <button style={chip(filtroEstado === 'activas')} onClick={() => setFiltroEstado('activas')}>Activas ({totalActivas})</button>
-        <button style={chip(filtroEstado === 'inactivas')} onClick={() => setFiltroEstado('inactivas')}>Inactivas ({totalInactivas})</button>
-        <button style={chip(soloSinSku)} onClick={() => setSoloSinSku(v => !v)}>Sin SKU ({totalSinSku})</button>
-        <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{ width: 'auto', minWidth: '190px' }}>
+
+      {/* Buscador y filtros rápidos */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="buscador">
+          <span className="lupa">🔍</span>
+          <input type="text" placeholder="Buscar por nombre, SKU o medida..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+        </div>
+        <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{ width: 'auto', minWidth: '200px' }}>
           <option value="">Todas las categorías</option>
           {categorias.filter(c => planchas.some(p => p.categoria === c)).map(c => (
             <option key={c} value={c}>{c} ({planchas.filter(p => p.categoria === c).length})</option>
           ))}
         </select>
         {hayFiltro && (
-          <button onClick={limpiarFiltros} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: '500' }}>
+          <button onClick={limpiarFiltros} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: 600 }}>
             ✕ Limpiar filtros
           </button>
         )}
+      </div>
+      <div className="chip-fila" style={{ marginBottom: '18px' }}>
+        <button className={`chip-x${filtroEstado === 'todas' ? ' activo' : ''}`} onClick={() => setFiltroEstado('todas')}>Todas <span className="n">{planchas.length}</span></button>
+        <button className={`chip-x${filtroEstado === 'activas' ? ' activo' : ''}`} style={{ '--c': 'var(--green)' }} onClick={() => setFiltroEstado('activas')}>Activas <span className="n">{totalActivas}</span></button>
+        <button className={`chip-x${filtroEstado === 'inactivas' ? ' activo' : ''}`} style={{ '--c': 'var(--text2)' }} onClick={() => setFiltroEstado('inactivas')}>Inactivas <span className="n">{totalInactivas}</span></button>
+        <button className={`chip-x${soloSinSku ? ' activo' : ''}`} style={{ '--c': 'var(--amber)' }} onClick={() => setSoloSinSku(v => !v)}>Sin SKU <span className="n">{totalSinSku}</span></button>
       </div>
 
       {loading ? (
@@ -287,33 +303,40 @@ export default function Planchas() {
             {planchasFiltradas.length} resultado{planchasFiltradas.length !== 1 ? 's' : ''}
           </p>
           {planchasFiltradas.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px', padding: '32px' }}>No se encontraron planchas con esos filtros</p>
+            <div style={{ textAlign: 'center', padding: '36px' }}>
+              <p className="rebote" style={{ fontSize: '34px', marginBottom: '6px' }}>🔎</p>
+              <p style={{ color: 'var(--text3)', fontSize: '13px' }}>No se encontraron planchas con esos filtros</p>
+            </div>
           ) : (
             <TablaPlanchas items={planchasFiltradas} mostrarCategoria onEditar={abrirFormEditar} onToggleActivo={handleToggleActivo} />
           )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {Object.entries(porCategoria).map(([cat, items]) => {
             const colores = categoriaColor[cat] ?? { bg: 'var(--bg3)', color: 'var(--text3)', border: 'var(--border)' }
+            const abierta = !!categoriasAbiertas[cat]
+            const activas = items.filter(p => p.activo).length
             return (
-              <div key={cat} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
-                <button onClick={() => toggleCategoria(cat)}
+              <div key={cat} className="elevar" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeft: `4px solid ${colores.color}`, borderRadius: '14px', overflow: 'hidden' }}>
+                <button onClick={() => toggleCategoria(cat)} aria-expanded={abierta}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ background: colores.bg, color: colores.color, border: `1px solid ${colores.border}`, fontSize: '12px', fontWeight: '500', padding: '3px 10px', borderRadius: '99px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ background: colores.bg, color: colores.color, border: `1px solid ${colores.border}`, fontSize: '12px', fontWeight: '600', padding: '3px 12px', borderRadius: '99px' }}>
                       {cat}
                     </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text3)' }}>{items.length} tipo{items.length !== 1 ? 's' : ''}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text3)' }}>{items.length} tipo{items.length !== 1 ? 's' : ''} · {activas} activo{activas !== 1 ? 's' : ''}</span>
                   </div>
-                  <span style={{ color: 'var(--text3)', fontSize: '16px' }}>{categoriasAbiertas[cat] ? '−' : '+'}</span>
+                  <span className={`chevron${abierta ? ' abierto' : ''}`} style={{ color: colores.color, fontSize: '13px' }}>▼</span>
                 </button>
 
-                {categoriasAbiertas[cat] && (
-                  <div className="entrada" style={{ borderTop: '1px solid var(--border)' }}>
-                    <TablaPlanchas items={items} onEditar={abrirFormEditar} onToggleActivo={handleToggleActivo} />
+                <div className={`acordeon${abierta ? ' abierto' : ''}`}>
+                  <div>
+                    <div style={{ borderTop: '1px solid var(--border)' }}>
+                      <TablaPlanchas items={items} onEditar={abrirFormEditar} onToggleActivo={handleToggleActivo} />
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )
           })}
