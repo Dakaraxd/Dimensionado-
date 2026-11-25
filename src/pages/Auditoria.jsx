@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { PERIODOS, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
+import { Avatar } from '../components/CuentasRapidas'
+import NumeroAnimado from '../components/NumeroAnimado'
 
 const TABLAS = {
   ordenes: 'Órdenes',
@@ -12,21 +14,13 @@ const TABLAS = {
   planificacion_dias: 'Planificador',
 }
 const OPERACIONES = {
-  INSERT: { texto: 'Creó', color: 'var(--green)', soft: 'var(--green-soft)' },
-  UPDATE: { texto: 'Modificó', color: 'var(--info)', soft: 'var(--info-soft)' },
-  DELETE: { texto: 'Eliminó', color: 'var(--red)', soft: 'var(--red-soft)' },
+  INSERT: { texto: 'Creó', color: 'var(--green)', soft: 'var(--green-soft)', icono: '➕' },
+  UPDATE: { texto: 'Modificó', color: 'var(--info)', soft: 'var(--info-soft)', icono: '✏️' },
+  DELETE: { texto: 'Eliminó', color: 'var(--red)', soft: 'var(--red-soft)', icono: '🗑️' },
 }
 // Campos técnicos que no aportan al leer un cambio
 const IGNORAR = new Set(['actualizado_en', 'creado_en', 'actualizado_por'])
 const LIMITE = 500
-
-const card = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px' }
-const chip = (activo) => ({
-  padding: '6px 14px', borderRadius: '99px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
-  border: `1px solid ${activo ? 'var(--primary)' : 'var(--border)'}`,
-  background: activo ? 'var(--primary)' : 'var(--bg2)',
-  color: activo ? '#fff' : 'var(--text2)'
-})
 
 const fmt = (v) => {
   if (v === null || v === undefined) return '—'
@@ -85,17 +79,22 @@ export default function Auditoria() {
     (usuario === '' || (f.usuario_nombre ?? 'Sistema / SQL') === usuario))
   const porDia = lista.reduce((acc, f) => { const k = diaDe(f.creado_en); (acc[k] ??= []).push(f); return acc }, {})
   const hayFiltro = tabla !== '' || operacion !== '' || usuario !== ''
+  const cuentaOp = (op) => filas.filter(f => (tabla === '' || f.tabla === tabla) && (usuario === '' || (f.usuario_nombre ?? 'Sistema / SQL') === usuario) && (op === '' || f.operacion === op)).length
 
   return (
     <div>
-      <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '14px' }}>
-        Registro automático de la base de datos: cada creación, cambio o eliminación queda guardado con quién lo hizo, y no se puede editar ni borrar.
-      </p>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-        {PERIODOS.map(p => <button key={p.key} style={chip(periodo === p.key)} onClick={() => setPeriodo(p.key)}>{p.label}</button>)}
+      <div style={{ marginBottom: '16px' }}>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '2px' }}>Auditoría de base de datos</h2>
+        <p style={{ fontSize: '13px', color: 'var(--text3)' }}>
+          Registro automático: cada creación, cambio o eliminación queda guardado con quién lo hizo, y no se puede editar ni borrar.
+        </p>
+      </div>
+
+      <div className="chip-fila" style={{ marginBottom: '12px' }}>
+        {PERIODOS.map(p => <button key={p.key} className={`chip-x${periodo === p.key ? ' activo' : ''}`} onClick={() => setPeriodo(p.key)}>{p.label}</button>)}
       </div>
       {periodo === 'rango' && (
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
+        <div className="entrada" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
           <label style={{ fontSize: '12px', color: 'var(--text3)' }}>Desde</label>
           <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ width: 'auto' }} />
           <label style={{ fontSize: '12px', color: 'var(--text3)' }}>Hasta</label>
@@ -103,14 +102,30 @@ export default function Auditoria() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', margin: '14px 0 18px' }}>
+      {/* Resumen: tocar una tarjeta filtra por ese tipo de cambio */}
+      <div className="stat-grid" style={{ marginTop: '14px' }}>
+        {[
+          { clave: '', icono: '🛡️', titulo: 'Registros', color: 'var(--primary)', soft: 'var(--primary-soft)', detalle: 'cambios en el período' },
+          { clave: 'INSERT', icono: '➕', titulo: 'Creaciones', color: 'var(--green)', soft: 'var(--green-soft)', detalle: 'datos nuevos' },
+          { clave: 'UPDATE', icono: '✏️', titulo: 'Modificaciones', color: 'var(--info)', soft: 'var(--info-soft)', detalle: 'datos cambiados' },
+          { clave: 'DELETE', icono: '🗑️', titulo: 'Eliminaciones', color: 'var(--red)', soft: 'var(--red-soft)', detalle: 'datos borrados' },
+        ].map(t => (
+          <button key={t.titulo} className={`stat-card${operacion === t.clave ? ' activo' : ''}`} style={{ '--c': t.color, '--cs': t.soft, cursor: 'pointer' }}
+            onClick={() => setOperacion(operacion === t.clave ? '' : t.clave)}>
+            <div className="stat-icono">{t.icono}</div>
+            <div>
+              <p className="stat-valor"><NumeroAnimado valor={cuentaOp(t.clave)} /></p>
+              <p className="stat-titulo">{t.titulo}</p>
+              <p className="stat-detalle">{t.detalle}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', margin: '0 0 20px' }}>
         <select value={tabla} onChange={e => setTabla(e.target.value)} style={{ width: 'auto', minWidth: '170px' }}>
           <option value="">Todas las secciones</option>
           {Object.entries(TABLAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select value={operacion} onChange={e => setOperacion(e.target.value)} style={{ width: 'auto', minWidth: '150px' }}>
-          <option value="">Toda acción</option>
-          {Object.entries(OPERACIONES).map(([k, v]) => <option key={k} value={k}>{v.texto}</option>)}
         </select>
         <select value={usuario} onChange={e => setUsuario(e.target.value)} style={{ width: 'auto', minWidth: '170px' }}>
           <option value="">Todos los usuarios</option>
@@ -118,74 +133,90 @@ export default function Auditoria() {
         </select>
         {hayFiltro && (
           <button onClick={() => { setTabla(''); setOperacion(''); setUsuario('') }}
-            style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: 500 }}>✕ Limpiar filtros</button>
+            style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '13px', fontWeight: 600 }}>✕ Limpiar filtros</button>
         )}
       </div>
 
       {error && <p style={{ fontSize: '13px', color: 'var(--red)', background: 'var(--red-soft)', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px' }}>{error}</p>}
 
       {periodo === 'rango' && !rango ? (
-        <div style={{ ...card, padding: '30px', textAlign: 'center' }}><p style={{ color: 'var(--text3)', fontSize: '13px' }}>Elige las fechas “Desde” y “Hasta”.</p></div>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '30px', textAlign: 'center' }}><p style={{ color: 'var(--text3)', fontSize: '13px' }}>Elige las fechas “Desde” y “Hasta”.</p></div>
       ) : loading ? (
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando auditoría...</p>
       ) : lista.length === 0 ? (
-        <div style={{ ...card, padding: '40px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text3)' }}>{hayFiltro ? 'No hay registros que coincidan con los filtros.' : 'No hay registros en este período.'}</p>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '48px', textAlign: 'center' }}>
+          <p className="rebote" style={{ fontSize: '38px', marginBottom: '8px' }}>🛡️</p>
+          <p style={{ color: 'var(--text2)', fontWeight: 600 }}>{hayFiltro ? 'No hay registros que coincidan con los filtros' : 'No hay registros en este período'}</p>
         </div>
       ) : (
         <>
           {filas.length >= LIMITE && (
             <p style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '10px' }}>Se muestran los {LIMITE} registros más recientes del período. Acota las fechas para ver el resto.</p>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
             {Object.entries(porDia).map(([dia, items]) => (
               <div key={dia}>
-                <p style={{ fontSize: '14px', fontWeight: 600, textTransform: 'capitalize', marginBottom: '8px' }}>{etiquetaDia(dia)}</p>
-                <div style={{ ...card, overflow: 'hidden' }}>
+                <div className="act-dia">
+                  <span className="act-dia-pildora">📅 <span className="t">{etiquetaDia(dia)}</span> <span className="n">{items.length} registro{items.length === 1 ? '' : 's'}</span></span>
+                  <span className="act-dia-linea" />
+                </div>
+                <div className="act-lista">
                   {items.map((f, i) => {
                     const op = OPERACIONES[f.operacion] ?? OPERACIONES.UPDATE
                     const dif = f.operacion === 'UPDATE' ? cambios(f) : []
                     const expandido = abierto === f.id
+                    const quien = f.usuario_nombre ?? 'Sistema / SQL'
                     return (
-                      <div key={f.id} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
-                        <button onClick={() => setAbierto(expandido ? null : f.id)}
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 16px', background: 'transparent', border: 'none', textAlign: 'left', flexWrap: 'wrap', color: 'var(--text1)' }}>
-                          <span style={{ fontSize: '12px', color: 'var(--text3)', minWidth: '50px' }}>{horaDe(f.creado_en)}</span>
-                          <span style={{ background: op.soft, color: op.color, fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '99px', minWidth: '78px', textAlign: 'center' }}>{op.texto}</span>
-                          <span style={{ flex: 1, minWidth: '170px' }}>
-                            <span style={{ display: 'block', fontSize: '14px', fontWeight: 500 }}>{TABLAS[f.tabla] ?? f.tabla}</span>
-                            <span style={{ display: 'block', fontSize: '12px', color: 'var(--text3)' }}>
-                              {f.usuario_nombre ?? 'Sistema / SQL'}
-                              {f.operacion === 'UPDATE' && dif.length > 0 && ` · ${dif.map(d => d.campo).slice(0, 4).join(', ')}${dif.length > 4 ? '…' : ''}`}
+                      <div key={f.id} className="act-item" style={{ '--c': op.color, '--cs': op.soft, '--i': i }}>
+                        <div className="act-nodo" aria-hidden="true">{op.icono}</div>
+                        <div className="act-tarjeta" style={{ padding: 0 }}>
+                          <button onClick={() => setAbierto(expandido ? null : f.id)} aria-expanded={expandido}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'transparent', border: 'none', textAlign: 'left', flexWrap: 'wrap', color: 'var(--text1)' }}>
+                            <Avatar nombre={quien} tamano={30} />
+                            <span style={{ flex: 1, minWidth: '170px' }}>
+                              <span style={{ display: 'block', fontSize: '14px' }}>
+                                <strong>{quien}</strong> <span style={{ color: op.color, fontWeight: 600 }}>{op.texto.toLowerCase()}</span> en <strong>{TABLAS[f.tabla] ?? f.tabla}</strong>
+                              </span>
+                              {f.operacion === 'UPDATE' && dif.length > 0 && (
+                                <span style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
+                                  {dif.slice(0, 4).map(d => <span key={d.campo} className="etiqueta neutra">{d.campo}</span>)}
+                                  {dif.length > 4 && <span className="etiqueta neutra">+{dif.length - 4}</span>}
+                                </span>
+                              )}
                             </span>
-                          </span>
-                          <span style={{ fontSize: '12px', color: 'var(--text3)' }}>{expandido ? '▲' : '▼'}</span>
-                        </button>
-                        {expandido && (
-                          <div style={{ padding: '4px 16px 16px', background: 'var(--bg3)' }}>
-                            <p style={{ fontSize: '11px', color: 'var(--text3)', margin: '10px 0 8px' }}>Registro: {f.registro_id ?? '—'}</p>
-                            {f.operacion === 'UPDATE' ? (
-                              dif.length === 0 ? <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Sin cambios visibles (solo campos técnicos).</p> : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', gap: '6px 14px', fontSize: '12px' }}>
-                                  <span style={{ color: 'var(--text3)', fontWeight: 600 }}>Campo</span>
-                                  <span style={{ color: 'var(--text3)', fontWeight: 600 }}>Antes</span>
-                                  <span style={{ color: 'var(--text3)', fontWeight: 600 }}>Después</span>
-                                  {dif.map(d => (
-                                    <div key={d.campo} style={{ display: 'contents' }}>
-                                      <span style={{ fontWeight: 500 }}>{d.campo}</span>
-                                      <span style={{ color: 'var(--red)', wordBreak: 'break-word' }}>{fmt(d.antes)}</span>
-                                      <span style={{ color: 'var(--green)', wordBreak: 'break-word' }}>{fmt(d.despues)}</span>
-                                    </div>
-                                  ))}
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text2)' }}>{horaDe(f.creado_en)}</span>
+                            <span className={`chevron${expandido ? ' abierto' : ''}`} style={{ fontSize: '12px', color: 'var(--text3)' }}>▼</span>
+                          </button>
+                          <div className={`acordeon${expandido ? ' abierto' : ''}`}>
+                            <div>
+                              {expandido && (
+                                <div style={{ padding: '4px 16px 16px', background: 'var(--bg3)', borderRadius: '0 0 13px 13px' }}>
+                                  <p style={{ fontSize: '11px', color: 'var(--text3)', margin: '10px 0 8px' }}>Registro: {f.registro_id ?? '—'}</p>
+                                  {f.operacion === 'UPDATE' ? (
+                                    dif.length === 0 ? <p style={{ fontSize: '12px', color: 'var(--text3)' }}>Sin cambios visibles (solo campos técnicos).</p> : (
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', gap: '6px 14px', fontSize: '12px' }}>
+                                        <span style={{ color: 'var(--text3)', fontWeight: 600 }}>Campo</span>
+                                        <span style={{ color: 'var(--text3)', fontWeight: 600 }}>Antes</span>
+                                        <span style={{ color: 'var(--text3)', fontWeight: 600 }}>Después</span>
+                                        {dif.map(d => (
+                                          <div key={d.campo} style={{ display: 'contents' }}>
+                                            <span style={{ fontWeight: 600 }}>{d.campo}</span>
+                                            <span style={{ color: 'var(--red)', wordBreak: 'break-word' }}>{fmt(d.antes)}</span>
+                                            <span style={{ color: 'var(--green)', wordBreak: 'break-word' }}>{fmt(d.despues)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )
+                                  ) : (
+                                    <pre style={{ fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text2)', margin: 0, maxHeight: '260px', overflow: 'auto' }}>
+                                      {JSON.stringify(f.operacion === 'DELETE' ? f.datos_antes : f.datos_despues, null, 2)}
+                                    </pre>
+                                  )}
                                 </div>
-                              )
-                            ) : (
-                              <pre style={{ fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text2)', margin: 0, maxHeight: '260px', overflow: 'auto' }}>
-                                {JSON.stringify(f.operacion === 'DELETE' ? f.datos_antes : f.datos_despues, null, 2)}
-                              </pre>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )
                   })}

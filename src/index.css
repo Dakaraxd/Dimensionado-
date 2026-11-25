@@ -400,3 +400,112 @@ div[style*="var(--green-soft)"] { animation: entra-subiendo 0.3s ease-out backwa
 @media (prefers-reduced-motion: reduce) {
   .revela:not(.visto), .revela.visto { opacity: 1; animation: none; }
 }
+
+/* ───────── Pantallas de administración: tarjetas de resumen, chips, línea de tiempo y acordeón ───────── */
+@keyframes nodo-pulso { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes onda { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes chip-pop { 0% { transform: scale(0.92); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* Tarjetas de resumen con icono, número que cuenta y una barra de color que se extiende al pasar el mouse */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card {
+  position: relative; display: flex; align-items: center; gap: 14px; padding: 16px 18px; text-align: left;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; color: var(--text1);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.stat-card::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--c, var(--primary));
+  transform: scaleX(0.22); transform-origin: left; transition: transform 0.35s ease;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1); border-color: var(--c, var(--primary)); }
+.stat-card:hover::after, .stat-card.activo::after { transform: scaleX(1); }
+.stat-card.activo { border-color: var(--c, var(--primary)); }
+.stat-icono {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; flex-shrink: 0;
+  background: var(--cs, var(--primary-soft)); transition: transform 0.25s ease;
+}
+.stat-card:hover .stat-icono { transform: rotate(-8deg) scale(1.1); }
+.stat-valor { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--c, var(--text1)); }
+.stat-valor.texto { font-size: 18px; }
+.stat-titulo { font-size: 12px; font-weight: 600; color: var(--text2); }
+.stat-detalle { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+/* Chips de filtro: el activo se rellena con su color y "salta" un poco */
+.chip-fila { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip-x {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 99px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border); background: var(--bg2); color: var(--text2);
+  transition: transform 0.12s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.chip-x:hover { border-color: var(--c, var(--primary)); color: var(--c, var(--primary)); transform: translateY(-1px); }
+.chip-x.activo { background: var(--c, var(--primary)); border-color: var(--c, var(--primary)); color: #fff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16); animation: chip-pop 0.28s ease; }
+.chip-x .n { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: rgba(15, 23, 42, 0.08); transition: background 0.18s ease; }
+.chip-x.activo .n { background: rgba(255, 255, 255, 0.28); }
+
+/* Buscador con lupa */
+.buscador { position: relative; flex: 1; min-width: 220px; }
+.buscador input { padding-left: 38px; }
+.buscador .lupa { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); pointer-events: none; opacity: 0.55; transition: transform 0.2s ease, opacity 0.2s ease; }
+.buscador:focus-within .lupa { opacity: 1; transform: translateY(-50%) scale(1.15); }
+
+/* Línea de tiempo (actividad y auditoría) */
+.act-dia { position: sticky; top: 8px; z-index: 6; display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+.act-dia-pildora {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 99px; background: var(--bg2);
+  border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.07); font-size: 13px; font-weight: 700;
+}
+.act-dia-pildora .t { display: inline-block; }
+.act-dia-pildora .t::first-letter { text-transform: uppercase; }
+.act-dia-pildora .n { font-size: 12px; font-weight: 600; color: var(--text3); }
+.act-dia-linea { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+.act-lista { position: relative; display: flex; flex-direction: column; gap: 12px; margin-bottom: 26px; }
+.act-lista::before { content: ''; position: absolute; left: 19px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--border); }
+.act-item { position: relative; display: flex; gap: 14px; align-items: flex-start; animation: entra-subiendo 0.4s ease-out backwards; animation-delay: calc(min(var(--i, 0), 8) * 45ms); }
+.act-nodo {
+  position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 17px;
+  background: var(--bg2); border: 2px solid var(--c, var(--primary)); box-shadow: 0 0 0 4px var(--bg);
+}
+.act-item:hover .act-nodo { animation: nodo-pulso 0.7s ease; background: var(--cs, var(--bg2)); }
+.act-item.nuevo .act-nodo::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--c, var(--primary)); animation: onda 1.9s ease-out infinite; }
+.act-tarjeta {
+  position: relative; flex: 1; min-width: 0; background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 13px 16px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.act-tarjeta::before {
+  content: ''; position: absolute; left: -7px; top: 14px; width: 12px; height: 12px; background: var(--bg2);
+  border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); transform: rotate(45deg); transition: border-color 0.18s ease;
+}
+.act-item:hover .act-tarjeta { transform: translateX(4px); box-shadow: 0 8px 22px rgba(15, 23, 42, 0.09); border-color: var(--c, var(--primary)); }
+.act-item:hover .act-tarjeta::before { border-color: var(--c, var(--primary)); }
+.etiqueta { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.04em; }
+.etiqueta.neutra { background: var(--bg3); color: var(--text2); text-transform: none; letter-spacing: 0; font-weight: 600; }
+
+/* Acordeón suave (detalles que se despliegan) y flecha que gira */
+.acordeon { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease; }
+.acordeon.abierto { grid-template-rows: 1fr; }
+.acordeon > div { overflow: hidden; min-height: 0; }
+.chevron { display: inline-block; transition: transform 0.25s ease; }
+.chevron.abierto { transform: rotate(180deg); }
+
+/* Selector de dos pestañas con indicador que se desliza */
+.seg { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; background: var(--bg3); border-radius: 99px; padding: 4px; margin-bottom: 18px; }
+.seg button { position: relative; z-index: 1; background: transparent; border: none; padding: 8px 22px; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--text2); white-space: nowrap; transition: color 0.25s ease; }
+.seg button.activo { color: #fff; }
+.seg .indicador { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 99px; background: var(--primary); box-shadow: 0 4px 12px rgba(227, 6, 19, 0.28); transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+.seg.segundo .indicador { transform: translateX(100%); }
+
+/* Punto de estado (con onda si está activo), filas de tabla con resalte y entrada escalonada */
+.punto { position: relative; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--green)); margin-right: 6px; }
+.punto.vivo::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--c, var(--green)); animation: onda 1.9s ease-out infinite; }
+.fila-hover { transition: background 0.15s ease, box-shadow 0.15s ease; }
+.fila-hover:hover { background: var(--bg3); }
+.fila-entra { animation: entra-subiendo 0.35s ease-out backwards; animation-delay: calc(min(var(--i, 0), 12) * 35ms); }
+.girando { display: inline-block; animation: girar 0.8s linear infinite; }
+
+@media (max-width: 900px) { .act-dia { top: 62px; } }
+@media (prefers-reduced-motion: reduce) {
+  .act-item, .fila-entra, .chip-x.activo, .girando { animation: none; }
+  .act-item:hover .act-nodo, .act-item.nuevo .act-nodo::after, .punto.vivo::after { animation: none; }
+  .stat-card, .stat-icono, .chip-x, .act-tarjeta, .acordeon, .chevron, .seg .indicador, .buscador .lupa { transition: none; }
+}
