@@ -384,3 +384,13 @@ div[style*="var(--green-soft)"] { animation: entra-subiendo 0.3s ease-out backwa
   .quick-tile:hover .quick-icon, .quick-badge, p[style*="var(--red-soft)"], [role="alert"],
   div[style*="var(--green-soft)"], .pieza-aparece { animation: none; }
 }
+
+/* Al bajar por el inicio, cada sección entra con un leve desplazamiento desde el costado */
+.main-content { overflow-x: clip; }
+.revela { opacity: 0; transition: opacity 0.7s ease-out, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.revela-izq { transform: translateX(-28px); }
+.revela-der { transform: translateX(28px); }
+.revela.visto { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .revela, .revela.visto { opacity: 1; transform: none; transition: none; }
+}
