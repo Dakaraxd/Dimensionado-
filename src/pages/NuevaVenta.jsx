@@ -384,8 +384,8 @@ export default function NuevaVenta({ onNavegar }) {
   if (paso === 'listo' && venta) {
     return (
       <div style={{ color: 'var(--text1)', maxWidth: '620px', margin: '0 auto' }}>
-        <div style={{ ...card, textAlign: 'center' }}>
-          <div style={{ fontSize: '44px', marginBottom: '8px' }}>✅</div>
+        <div className="entrada" style={{ ...card, textAlign: 'center' }}>
+          <div className="rebote" style={{ fontSize: '44px', marginBottom: '8px' }}>✅</div>
           <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '6px' }}>{venta.enEspera ? 'Orden en espera' : 'Orden aprobada'}</h2>
           <p style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '18px' }}>{venta.enEspera ? 'Sin boleta todavía' : <>Boleta <strong>#{venta.boleta}</strong></>} · {venta.cliente}</p>
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', textAlign: 'left', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>
@@ -471,7 +471,7 @@ export default function NuevaVenta({ onNavegar }) {
       {/* 1 · CLIENTE */}
       {paso === 'cliente' && avisoTaller()}
       {paso === 'cliente' && (
-        <div style={card}>
+        <div className="entrada" style={card}>
           {encabezado('¿Quién compra?', 'Ingresa el RUT y el nombre del cliente. Si ya compró antes, escribe su RUT o nombre y toca la sugerencia para autocompletar sus datos.')}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
             <div style={{ position: 'relative' }}>
@@ -524,7 +524,7 @@ export default function NuevaVenta({ onNavegar }) {
 
       {/* 2 · PLANCHA */}
       {paso === 'plancha' && (
-        <div style={card}>
+        <div className="entrada" style={card}>
           {encabezado('¿Qué plancha lleva?', 'Elige el tipo de plancha. Solo aparecen las que tienen stock disponible.')}
           <input type="text" placeholder="🔍 Buscar por nombre, medida o SKU..."
             value={busquedaPlancha} onChange={e => setBusquedaPlancha(e.target.value)} style={{ marginBottom: '12px' }} />
@@ -588,7 +588,7 @@ export default function NuevaVenta({ onNavegar }) {
 
       {/* 4 · DÍA (solo con cortes) */}
       {paso === 'dia' && cortes && (
-        <div style={card}>
+        <div className="entrada" style={card}>
           {encabezado('¿Qué día se cortan?', <>Los cortes usan <strong>{tableros} tablero{tableros !== 1 ? 's' : ''}</strong> de la capacidad del taller. Elige un día con cupo disponible.</>)}
           {cargandoDias ? (
             <p style={{ fontSize: '13px', color: 'var(--text3)' }}>Calculando días...</p>
@@ -640,7 +640,7 @@ export default function NuevaVenta({ onNavegar }) {
 
       {/* 5 · BOLETA */}
       {paso === 'boleta' && (
-        <div style={card}>
+        <div className="entrada" style={card}>
           {encabezado('Revisa y aprueba', 'Confirma el resumen, ingresa el número de boleta y aprueba la orden. Hasta ese momento no se descuenta stock. Si el cliente aún no paga, usa “Dejar en espera” (si no paga hoy, la orden se cancela sola a las 00:00).')}
 
           <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', lineHeight: 1.7, marginBottom: '18px' }}>

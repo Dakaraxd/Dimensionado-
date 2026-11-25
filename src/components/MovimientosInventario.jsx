@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { PERIODOS_REPORTES, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
 import { traerTodo } from '../lib/paginar'
+import NumeroAnimado from './NumeroAnimado'
 
 const LIMITE_FILAS = 300 // filas que se dibujan de una vez (las tarjetas de resumen usan todas)
 import { TIPOS_MOVIMIENTO } from '../lib/movimientos'
@@ -28,7 +29,7 @@ function Tarjeta({ icono, titulo, valor, color = 'var(--text1)' }) {
   return (
     <div style={{ ...card, padding: '14px 18px' }}>
       <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600, marginBottom: '6px' }}>{icono} {titulo}</p>
-      <p style={{ fontSize: '26px', fontWeight: 700, color, lineHeight: 1.15 }}>{valor}</p>
+      <p style={{ fontSize: '26px', fontWeight: 700, color, lineHeight: 1.15 }}><NumeroAnimado valor={valor} /></p>
     </div>
   )
 }
@@ -144,7 +145,7 @@ export default function MovimientosInventario({ recarga = 0 }) {
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando movimientos...</p>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+          <div className="escalon" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '18px' }}>
             <Tarjeta icono="📥" titulo="Ingresos" valor={resumen.ingresos} color="var(--green)" />
             <Tarjeta icono="🗑️" titulo="Mermas" valor={resumen.mermas} color={resumen.mermas > 0 ? 'var(--red)' : 'var(--text1)'} />
             <Tarjeta icono="↩️" titulo="Devoluciones" valor={resumen.devoluciones} />

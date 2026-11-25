@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { aYMD } from '../lib/fechas'
+import NumeroAnimado from '../components/NumeroAnimado'
 
 const COLORES_BARRAS = ['#e30613', '#004b9b', '#f5b800', '#15803d', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
 const COLOR_PRIMARIO = '#e30613'
@@ -46,7 +47,7 @@ function Scorecard({ icono, titulo, valor, detalle, colorValor = 'var(--text1)',
         <span style={{ fontSize: '18px' }}>{icono}</span>
         <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: '600' }}>{titulo}</p>
       </div>
-      <p style={{ fontSize: typeof valor === 'number' ? '28px' : '19px', fontWeight: '700', color: colorValor, lineHeight: 1.2, wordBreak: 'break-word' }}>{valor}</p>
+      <p style={{ fontSize: typeof valor === 'number' ? '28px' : '19px', fontWeight: '700', color: colorValor, lineHeight: 1.2, wordBreak: 'break-word' }}><NumeroAnimado valor={valor} /></p>
       <p style={{ fontSize: '12px', color: colorDetalle, marginTop: '4px' }}>{detalle}</p>
     </div>
   )
@@ -347,9 +348,9 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
       {loading ? (
         <p style={{ color: 'var(--text3)', fontSize: '13px' }}>Cargando panel...</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="escalon" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Indicadores */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
+          <div className="escalon" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
             <Scorecard icono="🟫" titulo="Planchas vendidas" valor={stats.totalPlanchas}
               detalle={detalleVentas} colorValor="var(--primary)" colorDetalle={colorDetalleVentas} />
             <Scorecard icono="🕐" titulo="Salidas pendientes de boleta (ahora)" valor={pendientes}
@@ -392,7 +393,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
                     <Tooltip content={<TooltipPersonalizado />} labelFormatter={d => `Día ${d}`} />
                     <Legend verticalAlign="top" align="right" iconType="plainline" wrapperStyle={{ fontSize: 12, paddingBottom: 6 }} />
                     <Area type="monotone" name="Planchas vendidas por día" dataKey="cantidad" stroke={COLOR_PRIMARIO} strokeWidth={2.5}
-                      fill="url(#gradFlujo)" dot={{ r: 3, fill: COLOR_PRIMARIO }} activeDot={{ r: 5 }} />
+                      fill="url(#gradFlujo)" dot={{ r: 3, fill: COLOR_PRIMARIO }} activeDot={{ r: 5 }} animationDuration={1100} animationEasing="ease-out" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -408,7 +409,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
                       <XAxis type="number" tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
                       <YAxis type="category" dataKey="nombre" width={140} tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
-                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]}>
+                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} animationDuration={900} animationEasing="ease-out">
                         {stats.masVendidos.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
                         <LabelList dataKey="cantidad" position="right" fill="#1f2937" fontSize={12} fontWeight={600} />
                       </Bar>
@@ -426,7 +427,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
                       <XAxis type="number" tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
                       <YAxis type="category" dataKey="nombre" width={140} tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
-                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} fill="#dc2626">
+                      <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} fill="#dc2626" animationDuration={900} animationEasing="ease-out">
                         <LabelList dataKey="cantidad" position="right" fill="#1f2937" fontSize={12} fontWeight={600} />
                       </Bar>
                     </BarChart>
@@ -452,7 +453,7 @@ export default function PanelVentas({ despuesDeTarjetas = null }) {
                       <YAxis tick={EJE_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={44}
                         label={{ value: 'Planchas', angle: -90, position: 'insideLeft', fill: '#4b5563', fontSize: 12, style: { textAnchor: 'middle' } }} />
                       <Tooltip content={<TooltipPersonalizado />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
-                      <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                      <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} animationDuration={900} animationEasing="ease-out">
                         {stats.porCategoria.map((_, i) => <Cell key={i} fill={COLORES_BARRAS[i % COLORES_BARRAS.length]} />)}
                         <LabelList dataKey="cantidad" position="top" fill="#1f2937" fontSize={12} fontWeight={600} />
                       </Bar>

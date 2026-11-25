@@ -6,6 +6,7 @@ import { PLANCHA_W_DEFAULT, PLANCHA_H_DEFAULT } from '../lib/optimizador'
 import EditorCortes from '../components/EditorCortes'
 import { PERIODOS_REPORTES, TZ, diaDe, horaDe, limites, etiquetaDia } from '../lib/periodos'
 import { traerTodo } from '../lib/paginar'
+import NumeroAnimado from '../components/NumeroAnimado'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 
 const LIMITE_FILAS = 200 // órdenes que se dibujan de una vez en la lista (el resumen siempre usa todas)
@@ -29,7 +30,7 @@ function Tarjeta({ icono, titulo, valor, detalle, colorValor = 'var(--text1)', c
   return (
     <div style={{ ...card, padding: '14px 18px' }}>
       <p style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600, marginBottom: '6px' }}>{icono} {titulo}</p>
-      <p style={{ fontSize: typeof valor === 'number' ? '26px' : '18px', fontWeight: 700, color: colorValor, lineHeight: 1.15, wordBreak: 'break-word' }}>{valor}</p>
+      <p style={{ fontSize: typeof valor === 'number' ? '26px' : '18px', fontWeight: 700, color: colorValor, lineHeight: 1.15, wordBreak: 'break-word' }}><NumeroAnimado valor={valor} /></p>
       <p style={{ fontSize: '11px', color: colorDetalle, marginTop: '3px' }}>{detalle}</p>
     </div>
   )
@@ -329,7 +330,7 @@ export default function HistorialVentas() {
       ) : (
         <>
           {/* Tarjetas del período */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+          <div className="escalon" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginBottom: '18px' }}>
             <Tarjeta icono="🟫" titulo="Planchas vendidas" valor={resumen.planchas} colorValor="var(--primary)"
               detalle={`en ${vigentes.length} orden${vigentes.length === 1 ? '' : 'es'}`} />
             <Tarjeta icono="🧾" titulo="Boletas emitidas" valor={resumen.boletas} detalle="en el período" />
@@ -384,7 +385,7 @@ export default function HistorialVentas() {
                     <XAxis dataKey="etiqueta" tick={{ fontSize: 10, fill: 'var(--text3)' }} interval={mensual.meses.length > 12 ? 1 : 0} />
                     <YAxis tick={{ fontSize: 10, fill: 'var(--text3)' }} allowDecimals={false} />
                     <Tooltip formatter={(v) => [`${v} planchas`, 'Vendidas']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                    <Bar dataKey="planchas" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="planchas" radius={[4, 4, 0, 0]} animationDuration={900} animationEasing="ease-out">
                       {mensual.meses.map((m, i) => (
                         <Cell key={m.clave} fill={comparacion && i < 12 ? 'rgba(227,6,19,0.35)' : '#e30613'} />
                       ))}
@@ -432,7 +433,7 @@ export default function HistorialVentas() {
                       <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', marginBottom: '5px' }}>
                         <span style={{ flex: '0 0 170px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombre}</span>
                         <span style={{ flex: 1, background: 'var(--bg3)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
-                          <span style={{ display: 'block', height: '8px', width: `${pct}%`, background: 'var(--primary)' }} />
+                          <span className="barra-crece" style={{ display: 'block', height: '8px', width: `${pct}%`, background: 'var(--primary)' }} />
                         </span>
                         <span style={{ flex: '0 0 78px', textAlign: 'right', color: 'var(--text2)' }}>{n} ({pct}%)</span>
                       </div>

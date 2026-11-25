@@ -104,7 +104,7 @@ export default function Stock() {
               {esAdmin && <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>Usa “Registrar movimiento” → Ingreso para comenzar.</p>}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
+            <div className="escalon" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
               {stocksFiltrados.map(s => (
                 <div key={s.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -117,7 +117,7 @@ export default function Stock() {
                   </div>
 
                   <div style={{ background: 'var(--bg3)', borderRadius: '99px', height: '4px', marginBottom: '10px' }}>
-                    <div style={{
+                    <div className="barra-crece" style={{
                       height: '4px', borderRadius: '99px', background: disponibleColor(s.disponible, s.total),
                       width: `${s.total > 0 ? Math.min(100, Math.max(0, (s.disponible / s.total) * 100)) : 0}%`, transition: 'width 0.3s'
                     }} />

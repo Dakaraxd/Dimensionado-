@@ -291,3 +291,54 @@ button { cursor: pointer; font-family: inherit; }
   .sierra-hoja, .sierra-aserrin { animation: none; }
   .sierra-aserrin { display: none; }
 }
+
+/* ───────── Animaciones suaves (no cambian colores ni formas; se apagan con "reducir movimiento") ───────── */
+@keyframes entra-subiendo {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fondo-entra { from { opacity: 0; } to { opacity: 1; } }
+@keyframes caja-entra {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes barra-crece { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes aparece-con-rebote {
+  0%   { opacity: 0; transform: scale(0.4); }
+  60%  { opacity: 1; transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Cada pantalla entra con un leve desplazamiento hacia arriba */
+.main-content > * { animation: entra-subiendo 0.35s ease-out backwards; }
+
+/* Grupos de tarjetas y secciones: aparecen una tras otra */
+.escalon > *, .quick-grid > .quick-tile { animation: entra-subiendo 0.45s ease-out backwards; }
+.escalon > *:nth-child(2), .quick-grid > .quick-tile:nth-child(2) { animation-delay: 0.06s; }
+.escalon > *:nth-child(3), .quick-grid > .quick-tile:nth-child(3) { animation-delay: 0.12s; }
+.escalon > *:nth-child(4), .quick-grid > .quick-tile:nth-child(4) { animation-delay: 0.18s; }
+.escalon > *:nth-child(5), .quick-grid > .quick-tile:nth-child(5) { animation-delay: 0.24s; }
+.escalon > *:nth-child(6), .quick-grid > .quick-tile:nth-child(6) { animation-delay: 0.30s; }
+.escalon > *:nth-child(n+7), .quick-grid > .quick-tile:nth-child(n+7) { animation-delay: 0.36s; }
+
+/* Pasos de una orden y mensajes que aparecen */
+.entrada { animation: entra-subiendo 0.3s ease-out backwards; }
+.rebote { animation: aparece-con-rebote 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+
+/* Ventanas emergentes: el fondo se desvanece y la caja sube con un pequeño rebote */
+.modal-fondo { animation: fondo-entra 0.18s ease-out; }
+.modal-caja { animation: caja-entra 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+
+/* Barras de progreso: crecen desde la izquierda al aparecer */
+.barra-crece { transform-origin: left center; animation: barra-crece 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+/* Botones: se hunden un poco al presionarse */
+button { transition: transform 0.1s ease; }
+button:not(:disabled):active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .main-content > *, .escalon > *, .quick-grid > .quick-tile, .entrada, .rebote,
+  .modal-fondo, .modal-caja, .barra-crece { animation: none; }
+  button { transition: none; }
+  button:not(:disabled):active { transform: none; }
+}
